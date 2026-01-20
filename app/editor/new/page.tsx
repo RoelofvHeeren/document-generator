@@ -22,7 +22,7 @@ function NewEditorContent() {
 
             // Create a new project with a document based on the template
             const res = await fetch("/api/projects", {
-                method: "POST",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     name: getTemplateName(templateId),

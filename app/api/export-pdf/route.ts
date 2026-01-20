@@ -40,7 +40,7 @@ const generatePageHtml = (docPage: DocumentPage) => {
     `;
 };
 
-export async function POST(req: Request) {
+export async function PUT(req: Request) {
   try {
     const { pages } = await req.json();
 

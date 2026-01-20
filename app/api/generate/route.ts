@@ -33,7 +33,7 @@ Output Format:
 You must output ONLY valid JSON matching the DocumentPage interface.
 `;
 
-export async function POST(req: Request) {
+export async function PUT(req: Request) {
     try {
         const { projectDetails, templateType } = await req.json();
 

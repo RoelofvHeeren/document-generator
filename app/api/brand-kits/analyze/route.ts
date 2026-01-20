@@ -5,7 +5,7 @@ import { analyzeBrandKitFolder, formatFileSize } from '@/lib/brand-kit-analyzer'
  * POST /api/brand-kits/analyze
  * Analyze a local brand kit folder and return structured information
  */
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
     try {
         const body = await request.json();
         const { folderPath } = body;

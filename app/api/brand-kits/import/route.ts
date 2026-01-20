@@ -7,7 +7,7 @@ import path from 'path';
  * POST /api/brand-kits/import
  * Import a brand kit from a local folder path
  */
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
     try {
         const body = await request.json();
         const { folderPath, kitName } = body;

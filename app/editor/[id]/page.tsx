@@ -143,7 +143,7 @@ export default function EditorPage() {
         setIsGenerating(true);
         try {
             const res = await fetch("/api/generate", {
-                method: "POST",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ projectDetails })
             });
@@ -171,95 +171,7 @@ export default function EditorPage() {
         }
     };
 
-    const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
 
-        setIsUploadingPDF(true);
-        try {
-            const formData = new FormData();
-            formData.append("file", file);
-
-            // Use the new backend API
-            const res = await fetch("/api/upload-pdf", {
-                method: "POST",
-                body: formData,
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || "Upload failed");
-            }
-
-            const data = await res.json();
-            const importedPages = data.pages;
-
-            // Map backend data to frontend DocumentPage structure
-            const newPages: DocumentPage[] = importedPages.map((p: any, pageIndex: number) => {
-                // Map components
-                const components: DocumentComponent[] = [];
-
-                // 1. Text Blocks
-                p.blocks.forEach((block: any, blockIndex: number) => {
-                    components.push({
-                        id: `text-${pageIndex}-${blockIndex}`,
-                        type: "text",
-                        x: block.x,
-                        y: block.y,
-                        width: block.width,
-                        height: block.height,
-                        rotation: block.rotation,
-                        content: block.text,
-                        font: block.font,
-                        style: {
-                            fontSize: `${block.fontSize}px`,
-                            fontFamily: "Inter, sans-serif", // Initial fallback, Renderer uses font property
-                            color: typeof block.color === 'number' ? `#${block.color.toString(16).padStart(6, '0')}` : "#000000",
-                            lineHeight: "1.2",
-                            whiteSpace: "pre-wrap"
-                        }
-                    });
-                });
-
-                // 2. Embedded Images
-                p.images.forEach((img: any, imgIndex: number) => {
-                    components.push({
-                        id: `img-${pageIndex}-${imgIndex}`,
-                        type: "image",
-                        x: img.x,
-                        y: img.y,
-                        width: img.width,
-                        height: img.height,
-                        src: img.src,
-                        label: "Extracted Image"
-                    });
-                });
-
-                return {
-                    id: `imported-page-${Date.now()}-${pageIndex}`,
-                    name: `PDF Page ${p.pageNumber}`,
-                    background: p.backgroundImage, // The full page render
-                    components: components
-                };
-            });
-
-            if (newPages.length > 0) {
-                if (pages.length === 1 && pages[0].components.length === 0) {
-                    setPages(newPages);
-                } else {
-                    setPages(prev => [...prev, ...newPages]);
-                }
-                setActiveTab("design");
-            }
-
-        } catch (error) {
-            console.error("PDF Import failed", error);
-            const message = error instanceof Error ? error.message : "Failed to import PDF";
-            alert(`Failed to import: ${message}`);
-        } finally {
-            setIsUploadingPDF(false);
-        }
-    };
 
     const handleAiVerify = async () => {
         if (!activePage || !activePage.background) return;
@@ -270,7 +182,7 @@ export default function EditorPage() {
             // We need the background image (URI) and the components
 
             const res = await fetch("/api/analyze-pdf", {
-                method: "POST",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     pageImage: activePage.background,
@@ -364,7 +276,7 @@ export default function EditorPage() {
         setIsExporting(true);
         try {
             const res = await fetch("/api/export-pdf", {
-                method: "POST",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ pages })
             });
@@ -748,27 +660,7 @@ export default function EditorPage() {
                                 Uses Claude Vision to correct layout, grouping, and rotation issues.
                             </p>
 
-                            <div className="pt-2">
-                                <label className="block w-full cursor-pointer group">
-                                    <input
-                                        type="file"
-                                        className="hidden"
-                                        accept="application/pdf"
-                                        onChange={handlePDFUpload}
-                                        disabled={isUploadingPDF}
-                                    />
-                                    <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-white/10 rounded-xl group-hover:border-teal-accent/50 group-hover:bg-teal-accent/5 transition-all">
-                                        {isUploadingPDF ? (
-                                            <Loader2 className="w-6 h-6 text-teal-accent animate-spin mb-2" />
-                                        ) : (
-                                            <Download className="w-6 h-6 text-gray-400 group-hover:text-teal-accent mb-2 rotate-180" />
-                                        )}
-                                        <span className="text-xs text-gray-400 group-hover:text-teal-accent">
-                                            {isUploadingPDF ? "Importing..." : "Upload PDF to Edit"}
-                                        </span>
-                                    </div>
-                                </label>
-                            </div>
+
                         </div>
                     )}
 

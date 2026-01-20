@@ -41,28 +41,26 @@ export default function Home() {
     setIsCreating(true);
     try {
       const res = await fetch("/api/projects", {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: "Untitled Project",
-          description: "New blank project",
-          templateId: "empty"
+          description: "New empty project",
         }),
       });
 
-      if (res.ok) {
-        const project = await res.json();
-        if (project.documents && project.documents.length > 0) {
-          router.push(`/editor/${project.documents[0].id}`);
-        } else {
-          console.error("Project created but no documents found");
-          fetchProjects();
-        }
+      if (!res.ok) throw new Error("Failed to create project");
+      const project = await res.json();
+
+      if (project.documents && project.documents.length > 0) {
+        router.push(`/editor/${project.documents[0].id}`);
       } else {
-        console.error("Failed to create project");
+        console.error("Project created but no documents found");
+        fetchProjects();
       }
     } catch (error) {
       console.error("Failed to create project", error);
+      alert("Failed to create project. Please try again.");
     } finally {
       setIsCreating(false);
     }

@@ -8,7 +8,7 @@ const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-export async function POST(req: Request) {
+export async function PUT(req: Request) {
     try {
         const { pageImage, extractedJson } = await req.json();
 

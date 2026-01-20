@@ -6,7 +6,7 @@ import { promises as fs } from 'fs';
 import AdmZip from 'adm-zip';
 
 /**
- * POST /api/brand-kits/upload
+ * POST /api/brand-kits/ingest
  * Upload and import a brand kit from a ZIP file
  */
 export async function POST(request: NextRequest) {

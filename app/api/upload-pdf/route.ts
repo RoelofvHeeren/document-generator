@@ -30,16 +30,9 @@ export async function POST(req: NextRequest) {
         // Save PDF
         await writeFile(pdfPath, buffer);
 
-        // Helper to get absolute path to python script
-        // Assumes the script is in the project root, two levels up from web-app/app/api/upload-pdf (incorrect, web-app is root of nextjs)
-        // The previous view_file showed extract_pdf.py is in "Fifth Ave Document Generator" root
-        // web-app is in "Fifth Ave Document Generator/web-app"
-        // So script is at ../extract_pdf_v2.py from web-app root
-
-        // We need to resolve the path carefully.
-        // process.cwd() in Next.js usually points to the project root (web-app folder?)
-        // Let's assume process.cwd() is web-app.
-        const scriptPath = path.resolve(process.cwd(), "..", "extract_pdf_v2.py");
+        // Script is now in web-app/scripts/extract_pdf_v2.py
+        // In Next.js, process.cwd() is the root of the project (web-app)
+        const scriptPath = path.join(process.cwd(), "scripts", "extract_pdf_v2.py");
 
         // Execute Python script
         // We pass the output dir as the same uploads dir

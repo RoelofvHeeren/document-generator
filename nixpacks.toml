@@ -1,3 +1,5 @@
+providers = ["python", "node"]
+
 [phases.setup]
 nixPkgs = ["nodejs", "python3", "python311Packages.pip"]
 

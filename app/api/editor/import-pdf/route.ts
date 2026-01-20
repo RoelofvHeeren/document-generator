@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as pdfjs from "pdfjs-dist";
 
-// Standard way to load worker in Node for pdfjs-dist
+// Using the legacy build as requested by Node.js environments
+// We import it this way to ensure it doesn't try to use browser globals like DOMMatrix
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+
 const setupWorker = async () => {
     if (typeof window === 'undefined' && !(pdfjs as any).GlobalWorkerOptions.workerSrc) {
-        // We use the minified worker for production stability
-        (pdfjs as any).GlobalWorkerOptions.workerSrc = require.resolve('pdfjs-dist/build/pdf.worker.mjs');
+        // Match the worker to the legacy build
+        (pdfjs as any).GlobalWorkerOptions.workerSrc = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
     }
 };
 
@@ -22,7 +24,8 @@ export async function PUT(request: NextRequest) {
         const loadingTask = pdfjs.getDocument({
             data: uint8Array,
             useSystemFonts: true,
-            isEvalSupported: false // Security best practice for Node
+            isEvalSupported: false,
+            disableFontFace: true // Often needed in Node to avoid font loading issues
         });
 
         const pdf = await loadingTask.promise;
@@ -50,14 +53,13 @@ export async function PUT(request: NextRequest) {
                 };
             });
 
-            // Group blocks by Y coordinate to reduce "garbled" text (simple heuristic)
-            // If they are on the same line and close to each other, merge them
+            // Merge logic remains the same
             const groupedBlocks: any[] = [];
             const sortedBlocks = [...blocks].sort((a, b) => a.y - b.y || a.x - b.x);
 
             let currentBlock: any = null;
-            const Y_THRESHOLD = 3; // pixels
-            const X_THRESHOLD = 5; // pixels
+            const Y_THRESHOLD = 3;
+            const X_THRESHOLD = 5;
 
             for (const block of sortedBlocks) {
                 if (!currentBlock) {

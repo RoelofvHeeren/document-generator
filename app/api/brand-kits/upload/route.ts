@@ -3,10 +3,7 @@ import prisma from '@/lib/prisma';
 import { analyzeBrandKitFolder, copyAssetsToPublic, formatFileSize } from '@/lib/brand-kit-analyzer';
 import path from 'path';
 import { promises as fs } from 'fs';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import AdmZip from 'adm-zip';
 
 /**
  * POST /api/brand-kits/upload
@@ -51,8 +48,8 @@ export async function POST(request: NextRequest) {
         await fs.mkdir(extractDir, { recursive: true });
 
         try {
-            // Use unzip command (available on most systems)
-            await execAsync(`unzip -q "${zipPath}" -d "${extractDir}"`);
+            const zip = new AdmZip(zipPath);
+            zip.extractAllTo(extractDir, true);
         } catch (unzipError) {
             console.error('Unzip failed:', unzipError);
             return NextResponse.json(

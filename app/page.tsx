@@ -37,8 +37,35 @@ export default function Home() {
     }
   };
 
-  const handleCreateProject = () => {
-    router.push("/templates");
+  const handleCreateProject = async () => {
+    setIsCreating(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Untitled Project",
+          description: "New blank project",
+          templateId: "empty"
+        }),
+      });
+
+      if (res.ok) {
+        const project = await res.json();
+        if (project.documents && project.documents.length > 0) {
+          router.push(`/editor/${project.documents[0].id}`);
+        } else {
+          console.error("Project created but no documents found");
+          fetchProjects();
+        }
+      } else {
+        console.error("Failed to create project");
+      }
+    } catch (error) {
+      console.error("Failed to create project", error);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleOpenProject = (project: Project) => {

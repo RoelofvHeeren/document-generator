@@ -176,33 +176,76 @@ export default function EditorPage() {
                 const textContent = await page.getTextContent();
                 const viewport = page.getViewport({ scale: 1.0 }); // 72 DPI by default usually
 
-                // Convert PDF items to our components
-                // Standard A4 is approx 595x842 pts. Our editor uses ~794x1123 px (96 DPI).
-                // We might need to handle scaling.
-                // For V1, we'll map directly and let user adjust.
+                const SCALE = 1.33;
 
-                const components: any[] = textContent.items.map((item: any, index: number) => {
-                    if (!item.str || item.str.trim() === "") return null;
-
-                    // PDF coordinates: bottom-left is origin usually. item.transform[5] is y (from bottom)
-                    // We need to flip Y.
-                    const x = item.transform[4];
-                    const y = viewport.height - item.transform[5] - item.height;
+                // 1. Extract raw items
+                const rawItems = textContent.items.map((item: any) => {
+                    const tx = item.transform; // [scaleX, skewY, skewX, scaleY, x, y]
+                    const x = tx[4];
+                    const y = viewport.height - tx[5];
 
                     return {
-                        id: `pdf-${i}-${index}`,
-                        type: "text",
-                        x: x * 1.33, // approx pt to px conversion if needed, or just keep raw
-                        y: y * 1.33,
-                        width: item.width * 1.5, // slightly wider to avoid wrap
-                        height: item.height * 1.5,
-                        content: item.str,
-                        style: {
-                            fontSize: `${item.height}px`, // approximate
-                            fontFamily: item.fontName
-                        }
+                        str: item.str,
+                        x: x,
+                        y: y,
+                        width: item.width,
+                        height: item.height,
+                        fontName: item.fontName,
+                        hasEOL: item.hasEOL
                     };
-                }).filter(Boolean);
+                });
+
+                // 2. Sort items: By Y (top-down), then X (left-right)
+                rawItems.sort((a: any, b: any) => {
+                    const dy = Math.abs(a.y - b.y);
+                    if (dy < 5) return a.x - b.x;
+                    return a.y - b.y;
+                });
+
+                // 3. Merge items close to each other
+                const mergedItems: any[] = [];
+                let current: any = null;
+
+                for (const item of rawItems) {
+                    if (!item.str || !item.str.trim()) continue;
+
+                    if (!current) {
+                        current = { ...item };
+                        continue;
+                    }
+
+                    const dy = Math.abs(current.y - item.y);
+                    const dx = item.x - (current.x + current.width);
+
+                    if (dy < 5 && dx < 20) {
+                        if (dx > 2 && !current.str.endsWith(" ") && !item.str.startsWith(" ")) {
+                            current.str += " ";
+                        }
+                        current.str += item.str;
+                        current.width += item.width + dx;
+                    } else {
+                        mergedItems.push(current);
+                        current = { ...item };
+                    }
+                }
+                if (current) mergedItems.push(current);
+
+                // 4. Convert merged items to Components
+                const components = mergedItems.map((item: any, index: number) => ({
+                    id: `pdf-${i}-${index}`,
+                    type: "text",
+                    x: item.x * SCALE,
+                    y: (item.y - item.height) * SCALE,
+                    width: Math.max(item.width * SCALE * 1.1, 50),
+                    height: item.height * SCALE * 1.5,
+                    content: item.str,
+                    style: {
+                        fontSize: `${Math.max(item.height * SCALE, 10)}px`,
+                        fontFamily: "sans-serif",
+                        whiteSpace: "nowrap",
+                        lineHeight: "1.2"
+                    }
+                }));
 
                 newPages.push({
                     id: `imported-page-${Date.now()}-${i}`,
@@ -613,7 +656,7 @@ export default function EditorPage() {
                         style={{ transform: "scale(0.8)" }}
                     >
                         {activePage ? (
-                            <div className="w-full h-full relative overflow-hidden bg-black">
+                            <div className="w-full h-full relative overflow-hidden bg-white">
                                 {/* Background if present */}
                                 {activePage.background && activePage.background.startsWith("#") ? (
                                     <div className="absolute inset-0 z-0" style={{ backgroundColor: activePage.background }}></div>

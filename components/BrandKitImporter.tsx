@@ -140,17 +140,20 @@ export function BrandKitImporter({ onImportComplete }: BrandKitImporterProps) {
         setErrorMessage(null);
 
         try {
-            // Create FormData and upload to the API
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('kitName', file.name.replace('.zip', ''));
+            // Create ArrayBuffer for raw upload to bypass FormData/Server Action logic
+            const arrayBuffer = await file.arrayBuffer();
+            const kitName = file.name.replace('.zip', '');
 
             setStatus('importing');
 
-            const response = await fetch(`/api/brand-kits/ingest?t=${Date.now()}`, {
+            const response = await fetch(`/api/brand-kits/ingest?t=${Date.now()}&kitName=${encodeURIComponent(kitName)}`, {
                 method: 'PUT',
-                body: formData,
-                cache: 'no-store', // Ensure we don't hit browser cache
+                body: arrayBuffer,
+                headers: {
+                    'Content-Type': 'application/zip',
+                    'X-File-Name': encodeURIComponent(file.name)
+                },
+                cache: 'no-store',
             });
 
             const data = await response.json();

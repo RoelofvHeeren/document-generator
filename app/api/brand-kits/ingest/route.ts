@@ -14,20 +14,16 @@ export async function PUT(request: NextRequest) {
     let tempDir: string | null = null;
 
     try {
-        const formData = await request.formData();
-        const file = formData.get('file') as File | null;
-        const kitName = formData.get('kitName') as string | null;
+        const searchParams = request.nextUrl.searchParams;
+        const kitNameParam = searchParams.get('kitName');
+        const fileNameEncoded = request.headers.get('x-file-name');
+        const fileName = fileNameEncoded ? decodeURIComponent(fileNameEncoded) : 'brand-kit.zip';
 
-        if (!file) {
-            return NextResponse.json(
-                { error: 'No file uploaded' },
-                { status: 400 }
-            );
-        }
+        const buffer = await request.arrayBuffer();
 
-        if (!file.name.endsWith('.zip')) {
+        if (!buffer || buffer.byteLength === 0) {
             return NextResponse.json(
-                { error: 'Only ZIP files are supported' },
+                { error: 'No file content uploaded' },
                 { status: 400 }
             );
         }
@@ -40,9 +36,11 @@ export async function PUT(request: NextRequest) {
         await fs.mkdir(tempDir, { recursive: true });
 
         // Save the uploaded ZIP file
-        const zipPath = path.join(tempDir, file.name);
-        const arrayBuffer = await file.arrayBuffer();
-        await fs.writeFile(zipPath, Buffer.from(arrayBuffer));
+        const zipPath = path.join(tempDir, fileName);
+        await fs.writeFile(zipPath, Buffer.from(buffer));
+
+        // Define kitName from param or filename
+        const kitName = kitNameParam || fileName.replace('.zip', '');
 
         // Extract the ZIP file
         const extractDir = path.join(tempDir, 'extracted');
@@ -69,7 +67,7 @@ export async function PUT(request: NextRequest) {
             brandKitFolder = path.join(extractDir, directories[0].name);
         }
 
-        const name = kitName || file.name.replace('.zip', '');
+        const name = kitName;
 
         // Step 1: Analyze the folder
         console.log(`Analyzing brand kit folder: ${brandKitFolder}`);

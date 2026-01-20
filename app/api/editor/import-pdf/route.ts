@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest) {
             verbosity: 0,
             // CRITICAL: This bypasses the need for pdf.worker.mjs in Node environments
             disableWorker: true,
-        });
+        } as any);
 
         const pdf = await loadingTask.promise;
         const numPages = pdf.numPages;

@@ -17,17 +17,35 @@ export default function EditorPage() {
     const [activeTab, setActiveTab] = useState<"content" | "design" | "ai">("content");
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const [pages, setPages] = useState<DocumentPage[]>([]);
     const [activePageIndex, setActivePageIndex] = useState(0);
 
-    // Form State
+    // Form State - Expanded for comprehensive document generation
     const [projectDetails, setProjectDetails] = useState({
+        // Basic Info
         name: "",
         location: "",
         description: "",
+        // Financial Metrics
         roi: "",
-        term: ""
+        term: "",
+        investmentAmount: "",
+        targetRaise: "",
+        projectedRevenue: "",
+        // Development Details
+        developer: "",
+        architect: "",
+        constructionTimeline: "",
+        units: "",
+        landSize: "",
+        // Team & Experience
+        teamBackground: "",
+        // Risk & Strategy
+        riskMitigation: "",
+        exitStrategy: "",
     });
+
 
     useEffect(() => {
         if (id) {
@@ -93,6 +111,12 @@ export default function EditorPage() {
     };
 
     const generateDocument = async () => {
+        // Validate that we have at least some project details
+        if (!projectDetails.name && !projectDetails.description) {
+            alert("Please fill in at least the Project Name or Description before generating.");
+            return;
+        }
+
         setIsGenerating(true);
         try {
             const res = await fetch("/api/generate", {
@@ -101,16 +125,63 @@ export default function EditorPage() {
                 body: JSON.stringify({ projectDetails })
             });
 
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+                throw new Error(errorData.error || `Server error: ${res.status}`);
+            }
+
             const data = await res.json();
-            if (data.pages) {
+            if (data.pages && data.pages.length > 0) {
                 setPages(data.pages);
                 setActiveTab("design"); // Switch to design view
+            } else if (data.error) {
+                throw new Error(data.error);
+            } else {
+                throw new Error("No pages were generated. Please try again.");
             }
         } catch (error) {
             console.error("Generation failed", error);
-            alert("Failed to generate document. Check console.");
+            const message = error instanceof Error ? error.message : "Failed to generate document";
+            alert(`Generation failed: ${message}`);
         } finally {
             setIsGenerating(false);
+        }
+    };
+    const handleExportPDF = async () => {
+        if (pages.length === 0) {
+            alert("No pages to export. Please generate a document first.");
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const res = await fetch("/api/export-pdf", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pages })
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+                throw new Error(errorData.error || `Export failed: ${res.status}`);
+            }
+
+            // Download the PDF
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${projectDetails.name || 'document'}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Export failed", error);
+            const message = error instanceof Error ? error.message : "Failed to export PDF";
+            alert(`Export failed: ${message}`);
+        } finally {
+            setIsExporting(false);
         }
     };
 
@@ -164,31 +235,36 @@ export default function EditorPage() {
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
 
                     {activeTab === "content" && (
-                        <div className="space-y-4">
-                            <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider">Project Details</h3>
-                            <Input
-                                label="Project Name"
-                                placeholder="e.g. Kaba Kaba Villa"
-                                value={projectDetails.name}
-                                onChange={(e) => handleInputChange("name", e.target.value)}
-                            />
-                            <Input
-                                label="Location"
-                                placeholder="e.g. Canggu, Bali"
-                                value={projectDetails.location}
-                                onChange={(e) => handleInputChange("location", e.target.value)}
-                            />
-                            <div>
-                                <label className="mb-2 block text-sm font-medium text-gray-400">Description</label>
-                                <textarea
-                                    className="w-full h-32 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-teal-accent focus:outline-none focus:ring-1 focus:ring-teal-accent/50 resize-none"
-                                    placeholder="Describe the investment opportunity..."
-                                    value={projectDetails.description}
-                                    onChange={(e) => handleInputChange("description", e.target.value)}
+                        <div className="space-y-6">
+                            {/* Basic Info */}
+                            <div className="space-y-4">
+                                <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider">Basic Info</h3>
+                                <Input
+                                    label="Project Name"
+                                    placeholder="e.g. Kaba Kaba Villas"
+                                    value={projectDetails.name}
+                                    onChange={(e) => handleInputChange("name", e.target.value)}
                                 />
+                                <Input
+                                    label="Location"
+                                    placeholder="e.g. Seseh, Bali"
+                                    value={projectDetails.location}
+                                    onChange={(e) => handleInputChange("location", e.target.value)}
+                                />
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-400">Description</label>
+                                    <textarea
+                                        className="w-full h-24 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-teal-accent focus:outline-none focus:ring-1 focus:ring-teal-accent/50 resize-none"
+                                        placeholder="Describe the investment opportunity..."
+                                        value={projectDetails.description}
+                                        onChange={(e) => handleInputChange("description", e.target.value)}
+                                    />
+                                </div>
                             </div>
-                            <div className="pt-4 border-t border-white/10">
-                                <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider mb-3">Key Metrics</h3>
+
+                            {/* Financial Metrics */}
+                            <div className="pt-4 border-t border-white/10 space-y-4">
+                                <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider">Financial Metrics</h3>
                                 <div className="grid grid-cols-2 gap-2">
                                     <Input
                                         label="ROI %"
@@ -198,9 +274,98 @@ export default function EditorPage() {
                                     />
                                     <Input
                                         label="Term"
-                                        placeholder="24 mo"
+                                        placeholder="24 months"
                                         value={projectDetails.term}
                                         onChange={(e) => handleInputChange("term", e.target.value)}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Input
+                                        label="Investment Amount"
+                                        placeholder="$500,000"
+                                        value={projectDetails.investmentAmount}
+                                        onChange={(e) => handleInputChange("investmentAmount", e.target.value)}
+                                    />
+                                    <Input
+                                        label="Target Raise"
+                                        placeholder="$2,500,000"
+                                        value={projectDetails.targetRaise}
+                                        onChange={(e) => handleInputChange("targetRaise", e.target.value)}
+                                    />
+                                </div>
+                                <Input
+                                    label="Projected Revenue"
+                                    placeholder="$850,000/year"
+                                    value={projectDetails.projectedRevenue}
+                                    onChange={(e) => handleInputChange("projectedRevenue", e.target.value)}
+                                />
+                            </div>
+
+                            {/* Development Details */}
+                            <div className="pt-4 border-t border-white/10 space-y-4">
+                                <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider">Development Details</h3>
+                                <Input
+                                    label="Developer"
+                                    placeholder="Fifth Avenue Properties"
+                                    value={projectDetails.developer}
+                                    onChange={(e) => handleInputChange("developer", e.target.value)}
+                                />
+                                <Input
+                                    label="Architect"
+                                    placeholder="Studio XYZ"
+                                    value={projectDetails.architect}
+                                    onChange={(e) => handleInputChange("architect", e.target.value)}
+                                />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Input
+                                        label="Timeline"
+                                        placeholder="18 months"
+                                        value={projectDetails.constructionTimeline}
+                                        onChange={(e) => handleInputChange("constructionTimeline", e.target.value)}
+                                    />
+                                    <Input
+                                        label="Units"
+                                        placeholder="5 villas"
+                                        value={projectDetails.units}
+                                        onChange={(e) => handleInputChange("units", e.target.value)}
+                                    />
+                                </div>
+                                <Input
+                                    label="Land Size"
+                                    placeholder="2,500 sqm"
+                                    value={projectDetails.landSize}
+                                    onChange={(e) => handleInputChange("landSize", e.target.value)}
+                                />
+                            </div>
+
+                            {/* Team & Strategy */}
+                            <div className="pt-4 border-t border-white/10 space-y-4">
+                                <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider">Team & Strategy</h3>
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-400">Team Background</label>
+                                    <textarea
+                                        className="w-full h-20 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-teal-accent focus:outline-none focus:ring-1 focus:ring-teal-accent/50 resize-none"
+                                        placeholder="Key team members and experience..."
+                                        value={projectDetails.teamBackground}
+                                        onChange={(e) => handleInputChange("teamBackground", e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-400">Risk Mitigation</label>
+                                    <textarea
+                                        className="w-full h-20 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-teal-accent focus:outline-none focus:ring-1 focus:ring-teal-accent/50 resize-none"
+                                        placeholder="Key risk factors and mitigation strategies..."
+                                        value={projectDetails.riskMitigation}
+                                        onChange={(e) => handleInputChange("riskMitigation", e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-400">Exit Strategy</label>
+                                    <textarea
+                                        className="w-full h-20 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-teal-accent focus:outline-none focus:ring-1 focus:ring-teal-accent/50 resize-none"
+                                        placeholder="Planned exit strategies for investors..."
+                                        value={projectDetails.exitStrategy}
+                                        onChange={(e) => handleInputChange("exitStrategy", e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -279,9 +444,9 @@ export default function EditorPage() {
                             {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                             {isSaving ? "Saving..." : "Save"}
                         </Button>
-                        <Button variant="primary" size="sm">
-                            <Download className="w-4 h-4 mr-2" />
-                            Export PDF
+                        <Button variant="primary" size="sm" onClick={handleExportPDF} disabled={isExporting || pages.length === 0}>
+                            {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                            {isExporting ? "Exporting..." : "Export PDF"}
                         </Button>
                     </div>
                 </div>

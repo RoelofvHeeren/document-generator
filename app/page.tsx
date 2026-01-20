@@ -51,33 +51,17 @@ export default function Home() {
 
       if (res.ok) {
         const project = await res.json();
-        // Assuming the API creates a default document or we need to find it
-        // Check if project has documents, otherwise we might need to create one, 
-        // but for now let's assume the API might not create a doc automatically 
-        // OR we just redirect to the project view.
-        // Actually, for this flow, let's redirect to the first document if it exists,
-        // or handle that.
-        // Let's create a document immediately if one doesn't exist? 
-        // Ideally backend handles this. Let's assume for now we go to editor with the project's first document.
 
-        // REVISIT: If api/projects doesn't create a document, we might need to.
-        // Let's assume we want to go a specific route.
-        // If the project creation includes a default document (which I should verify), we use its ID.
-        // If not, we might need to create one.
-        // Let's reload to be safe or check the response data structure.
-
+        // Navigate to the first document in the project
         if (project.documents && project.documents.length > 0) {
           router.push(`/editor/${project.documents[0].id}`);
         } else {
-          // Create a document if none exists
-          // This is a temporary fix until backend ensures default doc
-          const docRes = await fetch("/api/projects/" + project.id + "/documents", { // We don't have this route yet potentially?
-            // Actually we have POST /api/projects (creates project)
-            // We should probably rely on project creation to make a doc or have a separate create doc flow.
-          });
-          // Fallback: just refresh
+          // Fallback: refresh the project list and show an error
+          console.error("Project created but no documents found");
           fetchProjects();
         }
+      } else {
+        console.error("Failed to create project:", await res.text());
       }
     } catch (error) {
       console.error("Failed to create project", error);

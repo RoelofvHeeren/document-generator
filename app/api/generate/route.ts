@@ -43,14 +43,33 @@ export async function POST(req: Request) {
     Project Name: ${projectDetails.name}
     Location: ${projectDetails.location}
     Description: ${projectDetails.description}
-    ROI: ${projectDetails.roi}
-    Term: ${projectDetails.term}
+    
+    Financial Information:
+    - ROI: ${projectDetails.roi || "Not specified"}
+    - Investment Term: ${projectDetails.term || "Not specified"}
+    - Investment Amount: ${projectDetails.investmentAmount || "Not specified"}
+    - Target Raise: ${projectDetails.targetRaise || "Not specified"}
+    - Projected Revenue: ${projectDetails.projectedRevenue || "Not specified"}
+    
+    Development Details:
+    - Developer: ${projectDetails.developer || "Not specified"}
+    - Architect: ${projectDetails.architect || "Not specified"}
+    - Construction Timeline: ${projectDetails.constructionTimeline || "Not specified"}
+    - Number of Units: ${projectDetails.units || "Not specified"}
+    - Land Size: ${projectDetails.landSize || "Not specified"}
+    
+    Team Background: ${projectDetails.teamBackground || "Not specified"}
+    Risk Mitigation: ${projectDetails.riskMitigation || "Not specified"}
+    Exit Strategy: ${projectDetails.exitStrategy || "Not specified"}
 
     Template Type: ${templateType || "Business Plan"}
 
-    Please generate a 2-page document structure:
-    Page 1: Cover Page (High impact, large title, minimal text, background image)
-    Page 2: Executive Summary (Two columns, key metrics, investment highlights)
+    Please generate a comprehensive multi-page document structure:
+    Page 1: Cover Page (High impact, project name, location, key visual)
+    Page 2: Executive Summary (Investment highlights, key metrics, ROI)
+    Page 3: Development Overview (Project details, timeline, team)
+    Page 4: Financial Projections (Investment breakdown, returns, exit strategy)
+    Page 5: Risk Analysis (Risk factors and mitigation strategies)
     `;
 
         const msg = await anthropic.messages.create({

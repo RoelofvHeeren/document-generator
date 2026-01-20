@@ -42,7 +42,14 @@ model BrandKit {
   name      String
   colors    Json
   fonts     Json
-  assets    Json
+  assets    Json     // Legacy field for backwards compat
+
+  // Structured brand kit fields
+  logoCategories  Json?   // { "homes": { "black": [...], "white": [...] }, "properties": {...} }
+  fontFiles       Json?   // [{ name, weight, style, path, format }]
+  brandGuideUrl   String? // URL/path to brand guide PDF
+  sourceFolder    String? // Original folder name for reference
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

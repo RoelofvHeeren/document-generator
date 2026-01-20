@@ -7,7 +7,7 @@ import { ChevronLeft, Save, Sparkles, Download, Type, Image as ImageIcon, Loader
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { DocumentPage } from "@/types/document";
+import { DocumentPage, DocumentComponent } from "@/types/document";
 import { Renderer } from "@/components/Renderer";
 import Script from "next/script";
 
@@ -23,6 +23,26 @@ export default function EditorPage() {
     const [activePageIndex, setActivePageIndex] = useState(0);
     const [isSafeZoneVisible, setIsSafeZoneVisible] = useState(false);
     const [isUploadingPDF, setIsUploadingPDF] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Delete" || e.key === "Backspace") {
+                // Don't delete if we are in an input or contentEditable
+                if (
+                    document.activeElement?.tagName === "INPUT" ||
+                    document.activeElement?.tagName === "TEXTAREA" ||
+                    (document.activeElement as HTMLElement)?.isContentEditable
+                ) return;
+
+                if (selectedId) handleComponentDelete(selectedId);
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [selectedId]);
 
     // Form State - Expanded for comprehensive document generation
     const [projectDetails, setProjectDetails] = useState({
@@ -157,106 +177,72 @@ export default function EditorPage() {
 
         setIsUploadingPDF(true);
         try {
-            const arrayBuffer = await file.arrayBuffer();
+            const formData = new FormData();
+            formData.append("file", file);
 
-            // Access pdfjsLib from global window object (loaded via Script)
-            const pdfjsLib = (window as any).pdfjsLib;
-            if (!pdfjsLib) {
-                throw new Error("PDF Library not loaded. Please refresh.");
+            // Use the new backend API
+            const res = await fetch("/api/upload-pdf", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Upload failed");
             }
 
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+            const data = await res.json();
+            const importedPages = data.pages;
 
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            // Map backend data to frontend DocumentPage structure
+            const newPages: DocumentPage[] = importedPages.map((p: any, pageIndex: number) => {
+                // Map components
+                const components: DocumentComponent[] = [];
 
-            const newPages: DocumentPage[] = [];
-
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                const viewport = page.getViewport({ scale: 1.0 }); // 72 DPI by default usually
-
-                const SCALE = 1.33;
-
-                // 1. Extract raw items
-                const rawItems = textContent.items.map((item: any) => {
-                    const tx = item.transform; // [scaleX, skewY, skewX, scaleY, x, y]
-                    const x = tx[4];
-                    const y = viewport.height - tx[5];
-
-                    return {
-                        str: item.str,
-                        x: x,
-                        y: y,
-                        width: item.width,
-                        height: item.height,
-                        fontName: item.fontName,
-                        hasEOL: item.hasEOL
-                    };
-                });
-
-                // 2. Sort items: By Y (top-down), then X (left-right)
-                rawItems.sort((a: any, b: any) => {
-                    const dy = Math.abs(a.y - b.y);
-                    if (dy < 5) return a.x - b.x;
-                    return a.y - b.y;
-                });
-
-                // 3. Merge items close to each other
-                const mergedItems: any[] = [];
-                let current: any = null;
-
-                for (const item of rawItems) {
-                    if (!item.str || !item.str.trim()) continue;
-
-                    if (!current) {
-                        current = { ...item };
-                        continue;
-                    }
-
-                    const dy = Math.abs(current.y - item.y);
-                    const dx = item.x - (current.x + current.width);
-
-                    if (dy < 5 && dx < 20) {
-                        if (dx > 2 && !current.str.endsWith(" ") && !item.str.startsWith(" ")) {
-                            current.str += " ";
+                // 1. Text Blocks
+                p.blocks.forEach((block: any, blockIndex: number) => {
+                    components.push({
+                        id: `text-${pageIndex}-${blockIndex}`,
+                        type: "text",
+                        x: block.x,
+                        y: block.y,
+                        width: block.width,
+                        height: block.height,
+                        rotation: block.rotation,
+                        content: block.text,
+                        style: {
+                            fontSize: `${block.fontSize}px`,
+                            fontFamily: "Inter, sans-serif", // Default to Inter
+                            color: typeof block.color === 'number' ? `#${block.color.toString(16).padStart(6, '0')}` : "#000000",
+                            lineHeight: "1.2",
+                            whiteSpace: "pre-wrap"
                         }
-                        current.str += item.str;
-                        current.width += item.width + dx;
-                    } else {
-                        mergedItems.push(current);
-                        current = { ...item };
-                    }
-                }
-                if (current) mergedItems.push(current);
-
-                // 4. Convert merged items to Components
-                const components = mergedItems.map((item: any, index: number) => ({
-                    id: `pdf-${i}-${index}`,
-                    type: "text" as const,
-                    x: item.x * SCALE,
-                    y: (item.y - item.height) * SCALE,
-                    width: Math.max(item.width * SCALE * 1.1, 50),
-                    height: item.height * SCALE * 1.5,
-                    content: item.str,
-                    style: {
-                        fontSize: `${Math.max(item.height * SCALE, 10)}px`,
-                        fontFamily: "sans-serif",
-                        whiteSpace: "nowrap",
-                        lineHeight: "1.2"
-                    }
-                }));
-
-                newPages.push({
-                    id: `imported-page-${Date.now()}-${i}`,
-                    name: `PDF Page ${i}`,
-                    components: components
+                    });
                 });
-            }
+
+                // 2. Embedded Images
+                p.images.forEach((img: any, imgIndex: number) => {
+                    components.push({
+                        id: `img-${pageIndex}-${imgIndex}`,
+                        type: "image",
+                        x: img.x,
+                        y: img.y,
+                        width: img.width,
+                        height: img.height,
+                        src: img.src,
+                        label: "Extracted Image"
+                    });
+                });
+
+                return {
+                    id: `imported-page-${Date.now()}-${pageIndex}`,
+                    name: `PDF Page ${p.pageNumber}`,
+                    background: p.backgroundImage, // The full page render
+                    components: components
+                };
+            });
 
             if (newPages.length > 0) {
-                // Append to existing or replace? User asked to "start editing from there".
-                // If current doc is empty (1 page with 0 components), replace.
                 if (pages.length === 1 && pages[0].components.length === 0) {
                     setPages(newPages);
                 } else {
@@ -267,9 +253,53 @@ export default function EditorPage() {
 
         } catch (error) {
             console.error("PDF Import failed", error);
-            alert("Failed to import PDF. Ensure it is a valid PDF file.");
+            const message = error instanceof Error ? error.message : "Failed to import PDF";
+            alert(`Failed to import: ${message}`);
         } finally {
             setIsUploadingPDF(false);
+        }
+    };
+
+    const handleAiVerify = async () => {
+        if (!activePage || !activePage.background) return;
+
+        setIsAnalyzing(true);
+        try {
+            // Send current page composition to AI
+            // We need the background image (URI) and the components
+
+            const res = await fetch("/api/analyze-pdf", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pageImage: activePage.background,
+                    extractedJson: activePage.components
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Verification failed");
+            }
+
+            const data = await res.json();
+
+            if (data.components) {
+                // Update the current page with AI-refined components
+                setPages(prev => {
+                    const newPages = [...prev];
+                    newPages[activePageIndex].components = data.components;
+                    return newPages;
+                });
+                // alert("Layout refined by AI!");
+            }
+
+        } catch (error) {
+            console.error("AI Analysis failed", error);
+            const message = error instanceof Error ? error.message : "Analysis failed";
+            alert(`Analysis failed: ${message}`);
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
@@ -291,6 +321,36 @@ export default function EditorPage() {
             const newPages = [...prev];
             newPages[activePageIndex].components.push(newComponent);
             return newPages;
+        });
+    };
+
+    const handleComponentUpdate = (compId: string, updates: Partial<DocumentComponent>) => {
+        setPages(prev => {
+            const newPages = [...prev];
+            const page = newPages[activePageIndex];
+            const compIndex = page.components.findIndex(c => c.id === compId);
+            if (compIndex !== -1) {
+                page.components[compIndex] = { ...page.components[compIndex], ...updates };
+            }
+            return newPages;
+        });
+    };
+
+    const handleComponentDelete = (compId: string) => {
+        setPages(prev => {
+            const newPages = [...prev];
+            const page = newPages[activePageIndex];
+            page.components = page.components.filter(c => c.id !== compId);
+            return newPages;
+        });
+        setSelectedId(null);
+    };
+
+    const handleStyleUpdate = (compId: string, styleUpdates: Record<string, string>) => {
+        const comp = activePage?.components.find(c => c.id === compId);
+        if (!comp) return;
+        handleComponentUpdate(compId, {
+            style: { ...comp.style, ...styleUpdates }
         });
     };
 
@@ -560,6 +620,103 @@ export default function EditorPage() {
                                 </button>
                             </div>
 
+                            {/* AI Verification Button */}
+                            <div className="pt-2">
+                                <Button
+                                    className="w-full gap-2 relative overflow-hidden group"
+                                    onClick={handleAiVerify}
+                                    disabled={isAnalyzing || !activePage?.background}
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-teal-accent/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                    {isAnalyzing ? "Refining..." : "Refine Extraction with AI"}
+                                </Button>
+                            </div>
+
+                            {/* Property Editor */}
+                            {selectedId && activePage?.components.find(c => c.id === selectedId) && (() => {
+                                const comp = activePage.components.find(c => c.id === selectedId)!;
+                                return (
+                                    <div className="pt-4 border-t border-white/10 space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider">Properties</h3>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 px-2 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                                                onClick={() => handleComponentDelete(selectedId)}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-gray-500 font-medium ml-1">X Position</label>
+                                                <Input
+                                                    type="number"
+                                                    value={Math.round(comp.x || 0)}
+                                                    onChange={(e) => handleComponentUpdate(selectedId, { x: parseInt(e.target.value) })}
+                                                    className="h-8 text-xs"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-gray-500 font-medium ml-1">Y Position</label>
+                                                <Input
+                                                    type="number"
+                                                    value={Math.round(comp.y || 0)}
+                                                    onChange={(e) => handleComponentUpdate(selectedId, { y: parseInt(e.target.value) })}
+                                                    className="h-8 text-xs"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-gray-500 font-medium ml-1">Width</label>
+                                                <Input
+                                                    type="number"
+                                                    value={Math.round(comp.width || 0)}
+                                                    onChange={(e) => handleComponentUpdate(selectedId, { width: parseInt(e.target.value) })}
+                                                    className="h-8 text-xs"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-gray-500 font-medium ml-1">Height</label>
+                                                <Input
+                                                    type="number"
+                                                    value={Math.round(comp.height || 0)}
+                                                    onChange={(e) => handleComponentUpdate(selectedId, { height: parseInt(e.target.value) })}
+                                                    className="h-8 text-xs"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] text-gray-500 font-medium ml-1">Rotation (deg)</label>
+                                            <Input
+                                                type="number"
+                                                value={comp.rotation || 0}
+                                                onChange={(e) => handleComponentUpdate(selectedId, { rotation: parseInt(e.target.value) })}
+                                                className="h-8 text-xs"
+                                            />
+                                        </div>
+                                        {comp.type === 'text' && (
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-gray-500 font-medium ml-1">Font Size (px)</label>
+                                                <Input
+                                                    type="number"
+                                                    value={parseInt(comp.style?.fontSize || "16")}
+                                                    onChange={(e) => handleStyleUpdate(selectedId, { fontSize: `${e.target.value}px` })}
+                                                    className="h-8 text-xs"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+
+                            <p className="text-[10px] text-gray-400 mt-2 text-center text-balance">
+                                Uses Claude Vision to correct layout, grouping, and rotation issues.
+                            </p>
+
                             <div className="pt-2">
                                 <label className="block w-full cursor-pointer group">
                                     <input
@@ -665,7 +822,12 @@ export default function EditorPage() {
                                 ) : null}
 
                                 {/* Render Components */}
-                                <Renderer components={activePage.components} />
+                                <Renderer
+                                    components={activePage.components}
+                                    selectedId={selectedId}
+                                    onSelect={setSelectedId}
+                                    onUpdate={handleComponentUpdate}
+                                />
 
                                 {/* Safe Zone Overlay */}
                                 {isSafeZoneVisible && (
@@ -687,12 +849,7 @@ export default function EditorPage() {
                 </div>
 
             </div>
-            {/* Load PDF.js for client-side parsing */}
-            <Script
-                src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
-                strategy="lazyOnload"
-                onLoad={() => console.log("PDF.js loaded")}
-            />
+            {/* Load PDF.js logic removed as we use backend extraction */}
         </div>
     );
 }

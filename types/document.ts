@@ -8,6 +8,7 @@ export interface DocumentComponent {
     y?: number;
     width?: number;
     height?: number;
+    rotation?: number;
 
     // Content
     content?: string; // HTML or text

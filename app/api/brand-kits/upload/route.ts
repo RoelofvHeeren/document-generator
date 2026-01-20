@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Step 4: Copy assets to public folder
-        const publicPath = path.join(process.cwd(), 'public');
+        // Step 4: Copy assets to uploads folder (persistent storage)
+        const publicPath = path.join(process.cwd(), 'uploads');
         const { logos: copiedLogos, fonts: copiedFonts } = await copyAssetsToPublic(
             analysis,
             publicPath,

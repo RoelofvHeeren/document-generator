@@ -350,10 +350,10 @@ function addLogoToAnalysis(asset: AnalyzedAsset, analysis: BrandKitAnalysis): vo
  */
 export async function copyAssetsToPublic(
     analysis: BrandKitAnalysis,
-    publicBasePath: string,
+    basePath: string,
     kitId: string
 ): Promise<{ logos: Record<string, string>; fonts: Record<string, string> }> {
-    const destPath = path.join(publicBasePath, 'brand-kits', kitId);
+    const destPath = path.join(basePath, 'brand-kits', kitId);
 
     // Ensure destination directory exists
     await fs.mkdir(destPath, { recursive: true });
@@ -380,7 +380,7 @@ export async function copyAssetsToPublic(
 
                     await fs.copyFile(webSafeLogo.originalPath, destFilePath);
 
-                    const webPath = `/brand-kits/${kitId}/logos/${destFileName}`;
+                    const webPath = `/api/uploads/brand-kits/${kitId}/logos/${destFileName}`;
                     copiedLogos[`${subBrand}/${colorVariant}/${logoType}`] = webPath;
                     webSafeLogo.webPath = webPath;
                 }
@@ -395,7 +395,7 @@ export async function copyAssetsToPublic(
 
         await fs.copyFile(font.originalPath, destFilePath);
 
-        const webPath = `/brand-kits/${kitId}/fonts/${destFileName}`;
+        const webPath = `/api/uploads/brand-kits/${kitId}/fonts/${destFileName}`;
         copiedFonts[font.name] = webPath;
         font.webPath = webPath;
     }
@@ -410,7 +410,7 @@ export async function copyAssetsToPublic(
         const destFileName = 'brand-guide.pdf';
         const destFilePath = path.join(destPath, destFileName);
         await fs.copyFile(brandGuide.originalPath, destFilePath);
-        brandGuide.webPath = `/brand-kits/${kitId}/${destFileName}`;
+        brandGuide.webPath = `/api/uploads/brand-kits/${kitId}/${destFileName}`;
     }
 
     return { logos: copiedLogos, fonts: copiedFonts };

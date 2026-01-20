@@ -3,11 +3,12 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const document = await prisma.document.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         if (!document) {
@@ -22,14 +23,17 @@ export async function GET(
 
 export async function PUT(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const body = await req.json();
         const { name, content, themeId } = body;
 
         const document = await prisma.document.update({
-            where: { id: params.id },
+            where: { id },
+            // ... continued in next line
+
             data: {
                 name,
                 content, // This is Json type in Prisma

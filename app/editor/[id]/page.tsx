@@ -202,35 +202,23 @@ export default function EditorPage() {
 
             // Map backend data to frontend DocumentPage structure
             const newPages: DocumentPage[] = importedPages.map((p: any, pageIndex: number) => {
-                // Map components
-                const components: DocumentComponent[] = [];
-
-                // 1. Text Blocks
-                p.blocks.forEach((block: any, blockIndex: number) => {
-                    components.push({
-                        id: `text-${pageIndex}-${blockIndex}-${Date.now()}`,
-                        type: "text",
-                        x: block.x,
-                        y: block.y,
-                        width: block.width,
-                        height: block.height,
-                        rotation: block.rotation || 0,
-                        content: block.text,
-                        font: block.font,
-                        style: {
-                            fontSize: `${block.fontSize}px`,
-                            fontFamily: "Inter, sans-serif",
-                            color: "#000000",
-                            lineHeight: "1.2",
-                            whiteSpace: "pre-wrap"
-                        }
-                    });
-                });
+                // The components already follow the DocumentComponent schema from the backend
+                const components: DocumentComponent[] = p.components.map((comp: any) => ({
+                    ...comp,
+                    style: {
+                        fontSize: `${comp.fontSize || 12}px`,
+                        fontFamily: "Inter, sans-serif",
+                        color: "#000000",
+                        lineHeight: "1.2",
+                        whiteSpace: "pre-wrap"
+                    }
+                }));
 
                 return {
                     id: `imported-page-${Date.now()}-${pageIndex}`,
                     name: `PDF Page ${p.pageNumber}`,
-                    background: p.backgroundImage, // The full page render
+                    width: p.width,
+                    height: p.height,
                     components: components
                 };
             });

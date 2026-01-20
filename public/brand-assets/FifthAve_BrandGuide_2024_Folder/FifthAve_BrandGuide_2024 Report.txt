@@ -1,0 +1,57 @@
+Package Report
+
+-----------------------------------------------------------------------------
+Document:
+Name: FifthAve_BrandGuide_2024.pdf
+Color Mode: CMYK color
+Color Profile: U.S. Web Coated (SWOP) v2
+Ruler Units: inches
+Artboard Dimensions: 17 in x 11 in
+Show Images in Outline Mode: OFF
+Highlight Substituted Fonts: OFF
+Highlight Substituted Glyphs: OFF
+Preserve Text Editability
+Simulate Colored Paper: OFF
+
+-----------------------------------------------------------------------------
+Spot Color Objects:
+
+-----------------------------------------------------------------------------
+Missing Fonts:NONE
+
+-----------------------------------------------------------------------------
+Protected Fonts that were not packaged:
+FreightNeo Pro Book (Adobe Fonts)
+
+-----------------------------------------------------------------------------
+Fonts:
+Inter (OTF)
+Inter Light (OTF)
+
+-----------------------------------------------------------------------------
+Embedded Fonts:
+NONE
+
+-----------------------------------------------------------------------------
+Missing Links:
+NONE
+
+-----------------------------------------------------------------------------
+Linked Images:
+
+/Users/katie/Dropbox/FifthAve/Archive/Unsplash Photos/josh-rose-trYl7JYATH0-unsplash.jpg
+Type: RGB
+Bits per Pixel: 24
+Channels: 3
+Size: 69891K, 3992 by 5976 pixels
+Dimensions: 416.826 by 623.985 points 
+Resolution: 689.555 by 689.555 pixels per inch
+
+
+/Users/katie/Dropbox/FifthAve/Archive/Unsplash Photos/josh-rose-trYl7JYATH0-unsplash.jpg
+Type: RGB
+Bits per Pixel: 24
+Channels: 3
+Size: 69891K, 3992 by 5976 pixels
+Dimensions: 416.826 by 623.985 points 
+Resolution: 689.555 by 689.555 pixels per inch

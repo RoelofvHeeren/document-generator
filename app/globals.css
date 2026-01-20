@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  /* Fonts */
+  --font-sans: var(--font-jakarta), var(--font-inter), sans-serif;
+  --font-serif: var(--font-instrument), serif;
+  --font-mono: var(--font-jetbrains), monospace;
+
+  /* Colors */
+  --color-teal-accent: #139187;
+  --color-primary: #000000;
+  --color-primary-dim: #1a1a1a;
+  --color-primary-glow: #333333;
+  
+  --color-surface: rgba(255, 255, 255, 0.05); /* Glass surface */
+  --color-surface-dim: rgba(0, 0, 0, 0.20);
+  
+  /* Shadows */
+  --shadow-luxury: 0 20px 40px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  --shadow-3d: 0 10px 20px -5px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+@layer utilities {
+  .glass-card {
+    background: var(--color-surface);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+body {
+    background-color: #000000;
+}

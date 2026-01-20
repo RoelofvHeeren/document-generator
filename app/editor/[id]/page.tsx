@@ -1,0 +1,260 @@
+"use client";
+
+import { Sidebar } from "@/components/Sidebar";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { ChevronLeft, Save, Sparkles, Download, Type, Image as ImageIcon, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { DocumentPage } from "@/types/document";
+import { Renderer } from "@/components/Renderer";
+
+export default function EditorPage() {
+    const [activeTab, setActiveTab] = useState<"content" | "design" | "ai">("content");
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [pages, setPages] = useState<DocumentPage[]>([]);
+    const [activePageIndex, setActivePageIndex] = useState(0);
+
+    // Form State
+    const [projectDetails, setProjectDetails] = useState({
+        name: "",
+        location: "",
+        description: "",
+        roi: "",
+        term: ""
+    });
+
+    const handleInputChange = (field: string, value: string) => {
+        setProjectDetails(prev => ({ ...prev, [field]: value }));
+    };
+
+    const generateDocument = async () => {
+        setIsGenerating(true);
+        try {
+            const res = await fetch("/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ projectDetails })
+            });
+
+            const data = await res.json();
+            if (data.pages) {
+                setPages(data.pages);
+                setActiveTab("design"); // Switch to design view
+            }
+        } catch (error) {
+            console.error("Generation failed", error);
+            alert("Failed to generate document. Check console.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const activePage = pages[activePageIndex];
+
+    return (
+        <div className="flex h-screen overflow-hidden">
+            {/* 1. Main Navigation Sidebar (Global) */}
+            <Sidebar />
+
+            {/* 2. Editor Sidebar (Tools) */}
+            <div className="w-80 bg-black/40 backdrop-blur-xl border-r border-white/10 flex flex-col shrink-0">
+                <div className="p-4 border-b border-white/10 flex items-center gap-3">
+                    <Link href="/templates">
+                        <Button variant="ghost" size="sm" className="px-2">
+                            <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                    </Link>
+                    <div>
+                        <h2 className="text-white font-medium text-sm">Business Plan</h2>
+                        <p className="text-xs text-gray-400">Editor Analysis</p>
+                    </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex p-2 gap-1 border-b border-white/10">
+                    <button
+                        onClick={() => setActiveTab("content")}
+                        className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${activeTab === 'content' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        Content
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("design")}
+                        className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${activeTab === 'design' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        Design
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("ai")}
+                        className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${activeTab === 'ai' ? 'bg-teal-accent/20 text-teal-accent' : 'text-gray-400 hover:text-teal-accent'}`}
+                    >
+                        <div className="flex items-center justify-center gap-1">
+                            <Sparkles className="w-3 h-3" />
+                            AI Gen
+                        </div>
+                    </button>
+                </div>
+
+                {/* Dynamic Tool Panel */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
+                    {activeTab === "content" && (
+                        <div className="space-y-4">
+                            <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider">Project Details</h3>
+                            <Input
+                                label="Project Name"
+                                placeholder="e.g. Kaba Kaba Villa"
+                                value={projectDetails.name}
+                                onChange={(e) => handleInputChange("name", e.target.value)}
+                            />
+                            <Input
+                                label="Location"
+                                placeholder="e.g. Canggu, Bali"
+                                value={projectDetails.location}
+                                onChange={(e) => handleInputChange("location", e.target.value)}
+                            />
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-gray-400">Description</label>
+                                <textarea
+                                    className="w-full h-32 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-teal-accent focus:outline-none focus:ring-1 focus:ring-teal-accent/50 resize-none"
+                                    placeholder="Describe the investment opportunity..."
+                                    value={projectDetails.description}
+                                    onChange={(e) => handleInputChange("description", e.target.value)}
+                                />
+                            </div>
+                            <div className="pt-4 border-t border-white/10">
+                                <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider mb-3">Key Metrics</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Input
+                                        label="ROI %"
+                                        placeholder="25%"
+                                        value={projectDetails.roi}
+                                        onChange={(e) => handleInputChange("roi", e.target.value)}
+                                    />
+                                    <Input
+                                        label="Term"
+                                        placeholder="24 mo"
+                                        value={projectDetails.term}
+                                        onChange={(e) => handleInputChange("term", e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "design" && (
+                        <div className="space-y-4">
+                            <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider">Page Elements</h3>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button variant="secondary" className="flex-col gap-2 h-20">
+                                    <Type className="w-5 h-5 text-gray-400" />
+                                    <span className="text-xs text-gray-400">Text</span>
+                                </Button>
+                                <Button variant="secondary" className="flex-col gap-2 h-20">
+                                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                                    <span className="text-xs text-gray-400">Image</span>
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "ai" && (
+                        <div className="space-y-4">
+                            <div className="bg-teal-accent/10 border border-teal-accent/20 rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-2 text-teal-accent">
+                                    <Sparkles className="w-4 h-4" />
+                                    <span className="text-sm font-medium">AI Assistant</span>
+                                </div>
+                                <p className="text-xs text-teal-accent/80 mb-3">
+                                    Fill in the project details in the &apos;Content&apos; tab, then click generate to create the full document structure.
+                                </p>
+                                <Button
+                                    className="w-full gap-2"
+                                    onClick={generateDocument}
+                                    disabled={isGenerating}
+                                >
+                                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                    {isGenerating ? "Generatring..." : "Generate Document"}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            </div>
+
+            {/* 3. Main Workspace (Canvas) */}
+            <div className="flex-1 bg-neutral-900/50 flex flex-col relative overflow-hidden">
+
+                {/* Toolbar */}
+                <div className="h-14 bg-white/5 border-b border-white/10 flex items-center justify-between px-6 shrink-0 z-10">
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <span>Page {activePageIndex + 1} of {pages.length || 1}</span>
+                        {pages.length > 1 && (
+                            <div className="flex gap-1 ml-4">
+                                <Button
+                                    size="sm" variant="secondary" className="px-2"
+                                    onClick={() => setActivePageIndex(Math.max(0, activePageIndex - 1))}
+                                    disabled={activePageIndex === 0}
+                                >
+                                    Prev
+                                </Button>
+                                <Button
+                                    size="sm" variant="secondary" className="px-2"
+                                    onClick={() => setActivePageIndex(Math.min(pages.length - 1, activePageIndex + 1))}
+                                    disabled={activePageIndex === pages.length - 1}
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button variant="secondary" size="sm">
+                            <Save className="w-4 h-4 mr-2" />
+                            Save
+                        </Button>
+                        <Button variant="primary" size="sm">
+                            <Download className="w-4 h-4 mr-2" />
+                            Export PDF
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Canvas Area (Pan/Zoom) */}
+                <div className="flex-1 overflow-auto p-12 flex justify-center items-start">
+                    {/* A4 Page Representation */}
+                    {/* 210mm x 297mm approx 794px x 1123px at 96 DPI. Scaled for screen. */}
+                    <div
+                        className="bg-white w-[794px] h-[1123px] shadow-2xl relative shrink-0 transition-transform origin-top"
+                        style={{ transform: "scale(0.8)" }}
+                    >
+                        {activePage ? (
+                            <div className="w-full h-full relative overflow-hidden bg-black">
+                                {/* Background if present */}
+                                {activePage.background && activePage.background.startsWith("#") ? (
+                                    <div className="absolute inset-0 z-0" style={{ backgroundColor: activePage.background }}></div>
+                                ) : activePage.background ? (
+                                    <img src={activePage.background} className="absolute inset-0 w-full h-full object-cover z-0" />
+                                ) : null}
+
+                                {/* Render Components */}
+                                <Renderer components={activePage.components} />
+                            </div>
+                        ) : (
+                            <div className="p-16 flex flex-col h-full bg-black text-white relative overflow-hidden items-center justify-center border border-white/10">
+                                <div className="text-gray-500 text-center">
+                                    <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                    <p className="text-lg font-serif">Ready to Create</p>
+                                    <p className="text-sm">Enter details and use AI Gen to start.</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+}

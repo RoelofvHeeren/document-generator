@@ -6,10 +6,11 @@ import { promises as fs } from 'fs';
 import AdmZip from 'adm-zip';
 
 /**
- * POST /api/brand-kits/ingest
+ * PUT /api/brand-kits/ingest
  * Upload and import a brand kit from a ZIP file
+ * Using PUT to avoid Next.js Server Action method conflicts
  */
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
     let tempDir: string | null = null;
 
     try {

@@ -148,7 +148,7 @@ export function BrandKitImporter({ onImportComplete }: BrandKitImporterProps) {
             setStatus('importing');
 
             const response = await fetch(`/api/brand-kits/ingest?t=${Date.now()}`, {
-                method: 'POST',
+                method: 'PUT',
                 body: formData,
                 cache: 'no-store', // Ensure we don't hit browser cache
             });

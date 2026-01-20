@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Upload, FileArchive, Loader2, CheckCircle, AlertCircle, Folder } from 'lucide-react';
+import JSZip from 'jszip';
 
 interface ImportResult {
     success: boolean;
@@ -38,6 +39,7 @@ export function BrandKitImporter({ onImportComplete }: BrandKitImporterProps) {
     const [result, setResult] = useState<ImportResult | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null);
 
     const handleDrag = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -64,6 +66,64 @@ export function BrandKitImporter({ onImportComplete }: BrandKitImporterProps) {
         const files = e.target.files;
         if (files && files[0]) {
             handleFile(files[0]);
+        }
+    };
+
+    const handleFolderInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        setStatus('analyzing');
+        setErrorMessage(null);
+
+        try {
+            const zip = new JSZip();
+            let hasFiles = false;
+
+            // Add all files to the zip
+            // webkitRelativePath contains the full path including the root folder
+            // e.g., "Brand Kit/Logos/logo.png"
+            Array.from(files).forEach(file => {
+                if (file.name.startsWith('.') || file.name === '.DS_Store') return;
+
+                // Use the relative path to maintain structure
+                // Remove the first directory component if it's the root folder to mimic a zip content
+                // OR keep it - the backend handles nested folders gracefully now.
+                // analyzing logic usually expects the root folder content. 
+                // but local zip usually contains the root folder.
+                // backend behavior: "If there's only one directory ... use that"
+                // so keeping the structure as is (with root folder) is safer.
+
+                if (file.webkitRelativePath) {
+                    zip.file(file.webkitRelativePath, file);
+                    hasFiles = true;
+                } else {
+                    // Fallback for browsers that might not set webkitRelativePath correctly for flat files
+                    zip.file(file.name, file);
+                    hasFiles = true;
+                }
+            });
+
+            if (!hasFiles) {
+                setErrorMessage('No valid files found in the selected folder.');
+                setStatus('error');
+                return;
+            }
+
+            // Generate ZIP blob
+            const content = await zip.generateAsync({ type: 'blob' });
+
+            // Create a File object from the blob
+            const folderName = files[0].webkitRelativePath.split('/')[0] || 'brand-kit';
+            const zipFile = new File([content], `${folderName}.zip`, { type: 'application/zip' });
+
+            // Pass to existing handler
+            handleFile(zipFile);
+
+        } catch (error) {
+            console.error('Failed to process folder:', error);
+            setErrorMessage('Failed to process folder: ' + String(error));
+            setStatus('error');
         }
     };
 
@@ -137,38 +197,68 @@ export function BrandKitImporter({ onImportComplete }: BrandKitImporterProps) {
             </div>
 
             {status === 'idle' && (
-                <div
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`
-            border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
-            ${dragActive
-                            ? 'border-[#139187] bg-[#139187]/10'
-                            : 'border-white/20 hover:border-white/40 hover:bg-white/5'
-                        }
-          `}
-                >
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".zip"
-                        onChange={handleFileInput}
-                        className="hidden"
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* ZIP File Upload */}
+                    <div
+                        onDragEnter={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDragOver={handleDrag}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`
+                            border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[200px]
+                            ${dragActive
+                                ? 'border-[#139187] bg-[#139187]/10'
+                                : 'border-white/20 hover:border-white/40 hover:bg-white/5'
+                            }
+                        `}
+                    >
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".zip"
+                            onChange={handleFileInput}
+                            className="hidden"
+                        />
 
-                    <div className="flex flex-col items-center gap-3">
-                        <div className={`p-4 rounded-full ${dragActive ? 'bg-[#139187]/20' : 'bg-white/5'}`}>
+                        <div className={`p-4 rounded-full mb-3 ${dragActive ? 'bg-[#139187]/20' : 'bg-white/5'}`}>
                             <FileArchive className={`w-8 h-8 ${dragActive ? 'text-[#139187]' : 'text-gray-400'}`} />
                         </div>
                         <div>
                             <p className="text-white font-medium">
-                                {dragActive ? 'Drop your brand kit here' : 'Drag & drop your brand kit ZIP'}
+                                Upload ZIP File
                             </p>
-                            <p className="text-gray-500 text-sm mt-1">or click to browse</p>
+                            <p className="text-gray-500 text-sm mt-1">Drag & drop or click</p>
                         </div>
+                    </div>
+
+                    {/* Folder Upload */}
+                    <div
+                        onClick={() => folderInputRef.current?.click()}
+                        className="border-2 border-dashed border-white/20 hover:border-white/40 hover:bg-white/5 rounded-xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[200px]"
+                    >
+                        <input
+                            ref={folderInputRef}
+                            type="file"
+                            // @ts-ignore - webkitdirectory is standard in modern browsers but missing in React types
+                            webkitdirectory=""
+                            directory=""
+                            onChange={handleFolderInput}
+                            className="hidden"
+                        />
+
+                        <div className="p-4 rounded-full bg-white/5 mb-3">
+                            <Folder className="w-8 h-8 text-indigo-400" />
+                        </div>
+                        <div>
+                            <p className="text-white font-medium">
+                                Upload Folder
+                            </p>
+                            <p className="text-gray-500 text-sm mt-1">Select entire brand kit folder</p>
+                        </div>
+                    </div>
+
+                    <div className="md:col-span-2 text-center mt-2">
                         <p className="text-gray-600 text-xs">
                             Supports: Logos (PNG, JPG, SVG), Fonts (OTF, TTF), Brand guides (PDF)
                         </p>

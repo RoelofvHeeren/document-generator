@@ -44,10 +44,12 @@ export default function TemplatesPage() {
                             <h1 className="font-serif text-3xl text-white mb-2">Templates</h1>
                             <p className="text-gray-400">Select a starting point for your new document.</p>
                         </div>
-                        <Button>
-                            <Plus className="w-4 h-4 mr-2" />
-                            New Empty Template
-                        </Button>
+                        <Link href="/editor/new?template=empty">
+                            <Button>
+                                <Plus className="w-4 h-4 mr-2" />
+                                New Empty Template
+                            </Button>
+                        </Link>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

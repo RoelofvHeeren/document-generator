@@ -27,6 +27,7 @@ function NewEditorContent() {
                 body: JSON.stringify({
                     name: getTemplateName(templateId),
                     description: `Created from ${templateId} template`,
+                    templateId: templateId // Pass the template ID to the API
                 }),
             });
 
@@ -55,6 +56,7 @@ function NewEditorContent() {
             "business-plan": "Business Plan",
             "project-overview": "Project Overview",
             "investment-memo": "Investment Memorandum",
+            "empty": "Untitled Document"
         };
         return names[id] || "New Document";
     };

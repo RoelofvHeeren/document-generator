@@ -21,7 +21,41 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { name, location, description, roi, term } = body;
+        const { name, location, description, roi, term, templateId } = body;
+
+        let documentName = "Business Plan";
+        let documentType = "business-plan";
+        let initialContent: any = {};
+
+        switch (templateId) {
+            case "project-overview":
+                documentName = "Project Overview";
+                documentType = "project-overview";
+                initialContent = {
+                    pages: [{ id: '1', name: 'Overview', components: [] }]
+                };
+                break;
+            case "investment-memo":
+                documentName = "Investment Memo";
+                documentType = "investment-memo";
+                initialContent = {
+                    pages: [{ id: '1', name: 'Cover', components: [] }]
+                };
+                break;
+            case "empty":
+                documentName = "Untitled Document";
+                documentType = "custom";
+                initialContent = {
+                    pages: [{ id: '1', name: 'Page 1', components: [] }]
+                };
+                break;
+            case "business-plan":
+            default:
+                documentName = "Business Plan";
+                documentType = "business-plan";
+                // Keep empty or minimal for business plan to rely on AI or manual start
+                break;
+        }
 
         const project = await prisma.project.create({
             data: {
@@ -32,9 +66,9 @@ export async function POST(req: Request) {
                 term,
                 documents: {
                     create: {
-                        name: "Business Plan",
-                        content: {},
-                        type: "business-plan"
+                        name: documentName,
+                        content: initialContent,
+                        type: documentType
                     }
                 }
             },

@@ -81,6 +81,21 @@ export function Renderer({ components, theme = fifthAvenueTheme }: RendererProps
                     );
                 }
 
+                if (component.type === "shape") {
+                    return (
+                        <div
+                            key={component.id}
+                            style={{
+                                ...style,
+                                backgroundColor: style.backgroundColor || "var(--doc-primary)",
+                                borderRadius: style.borderRadius || "0"
+                            }}
+                            className="z-0"
+                        />
+                    );
+                }
+
+
                 return null;
             })}
         </div>

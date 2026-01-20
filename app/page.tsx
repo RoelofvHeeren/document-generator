@@ -37,37 +37,8 @@ export default function Home() {
     }
   };
 
-  const handleCreateProject = async () => {
-    setIsCreating(true);
-    try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "Untitled Project",
-          description: "New project created from dashboard",
-        }),
-      });
-
-      if (res.ok) {
-        const project = await res.json();
-
-        // Navigate to the first document in the project
-        if (project.documents && project.documents.length > 0) {
-          router.push(`/editor/${project.documents[0].id}`);
-        } else {
-          // Fallback: refresh the project list and show an error
-          console.error("Project created but no documents found");
-          fetchProjects();
-        }
-      } else {
-        console.error("Failed to create project:", await res.text());
-      }
-    } catch (error) {
-      console.error("Failed to create project", error);
-    } finally {
-      setIsCreating(false);
-    }
+  const handleCreateProject = () => {
+    router.push("/templates");
   };
 
   const handleOpenProject = (project: Project) => {

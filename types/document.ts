@@ -1,4 +1,4 @@
-export type ComponentType = "text" | "image" | "container" | "video";
+export type ComponentType = "text" | "image" | "container" | "video" | "shape";
 
 export interface DocumentComponent {
     id: string;

@@ -9,6 +9,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DocumentPage } from "@/types/document";
 import { Renderer } from "@/components/Renderer";
+import Script from "next/script";
 
 export default function EditorPage() {
     const params = useParams();
@@ -20,6 +21,8 @@ export default function EditorPage() {
     const [isExporting, setIsExporting] = useState(false);
     const [pages, setPages] = useState<DocumentPage[]>([]);
     const [activePageIndex, setActivePageIndex] = useState(0);
+    const [isSafeZoneVisible, setIsSafeZoneVisible] = useState(false);
+    const [isUploadingPDF, setIsUploadingPDF] = useState(false);
 
     // Form State - Expanded for comprehensive document generation
     const [projectDetails, setProjectDetails] = useState({
@@ -147,6 +150,107 @@ export default function EditorPage() {
             setIsGenerating(false);
         }
     };
+
+    const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingPDF(true);
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+
+            // Access pdfjsLib from global window object (loaded via Script)
+            const pdfjsLib = (window as any).pdfjsLib;
+            if (!pdfjsLib) {
+                throw new Error("PDF Library not loaded. Please refresh.");
+            }
+
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+            const newPages: DocumentPage[] = [];
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const viewport = page.getViewport({ scale: 1.0 }); // 72 DPI by default usually
+
+                // Convert PDF items to our components
+                // Standard A4 is approx 595x842 pts. Our editor uses ~794x1123 px (96 DPI).
+                // We might need to handle scaling.
+                // For V1, we'll map directly and let user adjust.
+
+                const components: any[] = textContent.items.map((item: any, index: number) => {
+                    if (!item.str || item.str.trim() === "") return null;
+
+                    // PDF coordinates: bottom-left is origin usually. item.transform[5] is y (from bottom)
+                    // We need to flip Y.
+                    const x = item.transform[4];
+                    const y = viewport.height - item.transform[5] - item.height;
+
+                    return {
+                        id: `pdf-${i}-${index}`,
+                        type: "text",
+                        x: x * 1.33, // approx pt to px conversion if needed, or just keep raw
+                        y: y * 1.33,
+                        width: item.width * 1.5, // slightly wider to avoid wrap
+                        height: item.height * 1.5,
+                        content: item.str,
+                        style: {
+                            fontSize: `${item.height}px`, // approximate
+                            fontFamily: item.fontName
+                        }
+                    };
+                }).filter(Boolean);
+
+                newPages.push({
+                    id: `imported-page-${Date.now()}-${i}`,
+                    name: `PDF Page ${i}`,
+                    components: components
+                });
+            }
+
+            if (newPages.length > 0) {
+                // Append to existing or replace? User asked to "start editing from there".
+                // If current doc is empty (1 page with 0 components), replace.
+                if (pages.length === 1 && pages[0].components.length === 0) {
+                    setPages(newPages);
+                } else {
+                    setPages(prev => [...prev, ...newPages]);
+                }
+                setActiveTab("design");
+            }
+
+        } catch (error) {
+            console.error("PDF Import failed", error);
+            alert("Failed to import PDF. Ensure it is a valid PDF file.");
+        } finally {
+            setIsUploadingPDF(false);
+        }
+    };
+
+    const addShape = (shapeType: 'rectangle' | 'circle' | 'line') => {
+        const newComponent: any = {
+            id: `shape-${Date.now()}`,
+            type: "shape",
+            x: 100,
+            y: 100,
+            width: shapeType === 'line' ? 200 : 100,
+            height: shapeType === 'line' ? 2 : 100,
+            style: {
+                backgroundColor: "#D4C5A8", // Default brand accent
+                borderRadius: shapeType === 'circle' ? "50%" : "0"
+            }
+        };
+
+        setPages(prev => {
+            const newPages = [...prev];
+            newPages[activePageIndex].components.push(newComponent);
+            return newPages;
+        });
+    };
+
     const handleExportPDF = async () => {
         if (pages.length === 0) {
             alert("No pages to export. Please generate a document first.");
@@ -385,6 +489,55 @@ export default function EditorPage() {
                                     <span className="text-xs text-gray-400">Image</span>
                                 </Button>
                             </div>
+
+                            <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider pt-4 border-t border-white/10">Shapes</h3>
+                            <div className="grid grid-cols-3 gap-2">
+                                <Button variant="secondary" className="flex-col gap-2 h-16" onClick={() => addShape('rectangle')}>
+                                    <div className="w-4 h-4 border border-gray-400 bg-gray-400/20" />
+                                    <span className="text-[10px] text-gray-400">Box</span>
+                                </Button>
+                                <Button variant="secondary" className="flex-col gap-2 h-16" onClick={() => addShape('circle')}>
+                                    <div className="w-4 h-4 rounded-full border border-gray-400 bg-gray-400/20" />
+                                    <span className="text-[10px] text-gray-400">Circle</span>
+                                </Button>
+                                <Button variant="secondary" className="flex-col gap-2 h-16" onClick={() => addShape('line')}>
+                                    <div className="w-4 h-px bg-gray-400" />
+                                    <span className="text-[10px] text-gray-400">Line</span>
+                                </Button>
+                            </div>
+
+                            <h3 className="text-xs uppercase text-gray-500 font-semibold tracking-wider pt-4 border-t border-white/10">Tools</h3>
+                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
+                                <span className="text-sm text-gray-300">Show Safe Zone</span>
+                                <button
+                                    onClick={() => setIsSafeZoneVisible(!isSafeZoneVisible)}
+                                    className={`w-10 h-5 rounded-full transition-colors relative ${isSafeZoneVisible ? 'bg-teal-accent' : 'bg-white/10'}`}
+                                >
+                                    <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${isSafeZoneVisible ? 'left-6' : 'left-1'}`} />
+                                </button>
+                            </div>
+
+                            <div className="pt-2">
+                                <label className="block w-full cursor-pointer group">
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="application/pdf"
+                                        onChange={handlePDFUpload}
+                                        disabled={isUploadingPDF}
+                                    />
+                                    <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-white/10 rounded-xl group-hover:border-teal-accent/50 group-hover:bg-teal-accent/5 transition-all">
+                                        {isUploadingPDF ? (
+                                            <Loader2 className="w-6 h-6 text-teal-accent animate-spin mb-2" />
+                                        ) : (
+                                            <Download className="w-6 h-6 text-gray-400 group-hover:text-teal-accent mb-2 rotate-180" />
+                                        )}
+                                        <span className="text-xs text-gray-400 group-hover:text-teal-accent">
+                                            {isUploadingPDF ? "Importing..." : "Upload PDF to Edit"}
+                                        </span>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     )}
 
@@ -470,6 +623,13 @@ export default function EditorPage() {
 
                                 {/* Render Components */}
                                 <Renderer components={activePage.components} />
+
+                                {/* Safe Zone Overlay */}
+                                {isSafeZoneVisible && (
+                                    <div className="absolute inset-[40px] border-2 border-dashed border-teal-500/50 pointer-events-none z-50">
+                                        <div className="absolute top-0 right-0 bg-teal-500/50 text-white text-[10px] px-1">Safe Zone</div>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="p-16 flex flex-col h-full bg-black text-white relative overflow-hidden items-center justify-center border border-white/10">
@@ -484,6 +644,12 @@ export default function EditorPage() {
                 </div>
 
             </div>
+            {/* Load PDF.js for client-side parsing */}
+            <Script
+                src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+                strategy="lazyOnload"
+                onLoad={() => console.log("PDF.js loaded")}
+            />
         </div>
     );
 }

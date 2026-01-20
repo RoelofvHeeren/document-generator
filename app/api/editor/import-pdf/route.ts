@@ -1,19 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Using the legacy build as requested by Node.js environments
-// We import it this way to ensure it doesn't try to use browser globals like DOMMatrix
-import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+/**
+ * PDF Import Route - Node-Native (pdfjs-dist)
+ * 
+ * FIX: This route uses dynamic imports and a DOMMatrix polyfill 
+ * to prevent build-time crashes and runtime reference errors in Node.
+ */
 
-const setupWorker = async () => {
-    if (typeof window === 'undefined' && !(pdfjs as any).GlobalWorkerOptions.workerSrc) {
-        // Match the worker to the legacy build
-        (pdfjs as any).GlobalWorkerOptions.workerSrc = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
-    }
-};
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function PUT(request: NextRequest) {
     try {
-        await setupWorker();
+        // 1. POLYFILL DOMMatrix (Required by pdfjs-dist v5+ in Node)
+        if (typeof global !== 'undefined' && !(global as any).DOMMatrix) {
+            (global as any).DOMMatrix = class DOMMatrix {
+                a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+                constructor(init?: any) {
+                    if (init instanceof Array && init.length === 6) {
+                        this.a = init[0]; this.b = init[1]; this.c = init[2];
+                        this.d = init[3]; this.e = init[4]; this.f = init[5];
+                    }
+                }
+                multiply() { return this; }
+                invertSelf() { return this; }
+                preMultiplySelf() { return this; }
+                multiplySelf() { return this; }
+                translate() { return this; }
+                scale() { return this; }
+                static fromFloat32Array() { return new DOMMatrix(); }
+                static fromFloat64Array() { return new DOMMatrix(); }
+            };
+        }
+
+        // 2. DYNAMIC IMPORT (Prevents build-time static analysis crashes)
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+        // 3. CONFIGURE WORKER
+        if (!(pdfjs as any).GlobalWorkerOptions.workerSrc) {
+            try {
+                (pdfjs as any).GlobalWorkerOptions.workerSrc = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+            } catch (e) {
+                // Fallback for environments where require.resolve behaves differently
+                console.warn("Could not resolve worker path, trying default lookup");
+            }
+        }
 
         const buffer = await request.arrayBuffer();
         if (!buffer || buffer.byteLength === 0) {
@@ -25,7 +56,8 @@ export async function PUT(request: NextRequest) {
             data: uint8Array,
             useSystemFonts: true,
             isEvalSupported: false,
-            disableFontFace: true // Often needed in Node to avoid font loading issues
+            disableFontFace: true,
+            verbosity: 0 // Keep it quiet
         });
 
         const pdf = await loadingTask.promise;
@@ -53,7 +85,7 @@ export async function PUT(request: NextRequest) {
                 };
             });
 
-            // Merge logic remains the same
+            // Group blocks by Y coordinate to reduce "garbled" text
             const groupedBlocks: any[] = [];
             const sortedBlocks = [...blocks].sort((a, b) => a.y - b.y || a.x - b.x);
 
@@ -99,6 +131,3 @@ export async function PUT(request: NextRequest) {
         }, { status: 500 });
     }
 }
-
-export const dynamic = "force-dynamic";
-export const maxDuration = 60;

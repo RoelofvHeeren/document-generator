@@ -194,7 +194,7 @@ export default function EditorPage() {
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.error || "Upload failed");
+                throw new Error(`${err.error}${err.details ? ': ' + err.details : ''}` || "Upload failed");
             }
 
             const data = await res.json();

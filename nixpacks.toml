@@ -4,10 +4,16 @@ providers = ["node", "python"]
 nixPkgs = ["nodejs", "python3", "python311Packages.pip"]
 
 [phases.install]
-cmds = ["npm install", "pip install -r python_requirements.txt", "python3 --version"]
+cmds = [
+    "mkdir -p public/uploads",
+    "npm install",
+    "pip install -r requirements.txt",
+    "echo 'Python Version during install:' && python3 --version",
+    "echo 'Python Path during install:' && which python3"
+]
 
 [phases.build]
 cmds = ["npx prisma generate", "npm run build"]
 
 [start]
-cmd = "npm run start"
+cmd = "echo 'PATH at runtime:' $PATH && echo 'Python location at runtime:' && (which python3 || echo 'python3 not found') && npm run start"

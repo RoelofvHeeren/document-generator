@@ -5,13 +5,18 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ChevronLeft, Save, Sparkles, Download, Type, Image as ImageIcon, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { DocumentPage } from "@/types/document";
 import { Renderer } from "@/components/Renderer";
 
 export default function EditorPage() {
+    const params = useParams();
+    const id = params?.id as string;
+
     const [activeTab, setActiveTab] = useState<"content" | "design" | "ai">("content");
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [pages, setPages] = useState<DocumentPage[]>([]);
     const [activePageIndex, setActivePageIndex] = useState(0);
 
@@ -23,6 +28,65 @@ export default function EditorPage() {
         roi: "",
         term: ""
     });
+
+    useEffect(() => {
+        if (id) {
+            fetchDocument(id);
+        }
+    }, [id]);
+
+    const fetchDocument = async (docId: string) => {
+        try {
+            const res = await fetch(`/api/documents/${docId}`);
+            if (res.ok) {
+                const doc = await res.json();
+                if (doc.content) {
+                    // content is stored as JSON, which respects the DocumentPage[] structure
+                    const content = doc.content as any;
+                    if (content.pages) {
+                        setPages(content.pages);
+                    }
+                    if (content.projectDetails) {
+                        setProjectDetails(content.projectDetails);
+                    }
+                }
+                if (doc.name) {
+                    // Update name in local state if needed
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load document", error);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!id) return;
+        setIsSaving(true);
+        try {
+            const content = {
+                pages,
+                projectDetails
+            };
+
+            const res = await fetch(`/api/documents/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: projectDetails.name || "Untitled Document",
+                    content,
+                })
+            });
+
+            if (!res.ok) throw new Error("Failed to save");
+
+            // Optional: Show success toast
+        } catch (error) {
+            console.error("Failed to save", error);
+            alert("Failed to save document");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleInputChange = (field: string, value: string) => {
         setProjectDetails(prev => ({ ...prev, [field]: value }));
@@ -211,9 +275,9 @@ export default function EditorPage() {
                         )}
                     </div>
                     <div className="flex items-center gap-3">
-                        <Button variant="secondary" size="sm">
-                            <Save className="w-4 h-4 mr-2" />
-                            Save
+                        <Button variant="secondary" size="sm" onClick={handleSave} disabled={isSaving}>
+                            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                            {isSaving ? "Saving..." : "Save"}
                         </Button>
                         <Button variant="primary" size="sm">
                             <Download className="w-4 h-4 mr-2" />

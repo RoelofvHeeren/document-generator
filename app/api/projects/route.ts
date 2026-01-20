@@ -5,6 +5,11 @@ export async function GET() {
     try {
         const projects = await prisma.project.findMany({
             orderBy: { updatedAt: "desc" },
+            include: {
+                documents: {
+                    select: { id: true }
+                }
+            }
         });
         return NextResponse.json(projects);
     } catch (error) {
@@ -25,7 +30,17 @@ export async function POST(req: Request) {
                 description,
                 roi,
                 term,
+                documents: {
+                    create: {
+                        name: "Business Plan",
+                        content: {},
+                        type: "business-plan"
+                    }
+                }
             },
+            include: {
+                documents: true
+            }
         });
 
         return NextResponse.json(project);

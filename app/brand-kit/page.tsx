@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { Plus, Trash2, Upload, Save, Loader2 } from "lucide-react";
 
 type ColorToken = {
     id: string;
@@ -14,18 +13,113 @@ type ColorToken = {
     usage: string;
 };
 
-const initialColors: ColorToken[] = [
+// Default setup if nothing exists
+const defaultColors: ColorToken[] = [
     { id: "1", name: "teal-accent", value: "#139187", usage: "Primary brand color, icons, links" },
     { id: "2", name: "primary", value: "#000000", usage: "Text, active nav items" },
     { id: "3", name: "primary-dim", value: "#1A1A1A", usage: "Dark backgrounds" },
 ];
 
 export default function BrandKitPage() {
-    const [colors, setColors] = useState<ColorToken[]>(initialColors);
+    const [brandKitId, setBrandKitId] = useState<string | null>(null);
+    const [colors, setColors] = useState<ColorToken[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        fetchBrandKit();
+    }, []);
+
+    const fetchBrandKit = async () => {
+        try {
+            const res = await fetch("/api/brand-kits");
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    const kit = data[0];
+                    setBrandKitId(kit.id);
+                    setColors(kit.colors as ColorToken[] || []);
+                } else {
+                    // Create default
+                    createDefaultBrandKit();
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch brand kits", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const createDefaultBrandKit = async () => {
+        try {
+            const res = await fetch("/api/brand-kits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: "Alvison Default",
+                    colors: defaultColors,
+                    fonts: {},
+                    assets: {}
+                })
+            });
+            if (res.ok) {
+                const kit = await res.json();
+                setBrandKitId(kit.id);
+                setColors(kit.colors as ColorToken[]);
+            }
+        } catch (error) {
+            console.error("Failed to create default brand kit", error);
+        }
+    };
+
+    const handleSave = async (updatedColors: ColorToken[]) => {
+        if (!brandKitId) return;
+        setIsSaving(true);
+        try {
+            await fetch(`/api/brand-kits/${brandKitId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    colors: updatedColors
+                })
+            });
+            // Success
+        } catch (error) {
+            console.error("Failed to save brand kit", error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleDelete = (id: string) => {
-        setColors(colors.filter(c => c.id !== id));
+        const newColors = colors.filter(c => c.id !== id);
+        setColors(newColors);
+        handleSave(newColors);
     };
+
+    const handleAddColor = () => {
+        const newColor: ColorToken = {
+            id: Date.now().toString(),
+            name: "new-color",
+            value: "#FFFFFF",
+            usage: "Description"
+        };
+        const newColors = [...colors, newColor];
+        setColors(newColors);
+        handleSave(newColors);
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex min-h-screen">
+                <Sidebar />
+                <main className="flex-1 p-8 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen">
@@ -38,10 +132,12 @@ export default function BrandKitPage() {
                             <h1 className="font-serif text-3xl text-white mb-2">Brand Kit</h1>
                             <p className="text-gray-400">Manage your brand's visual identity.</p>
                         </div>
-                        <Button>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Import Styling Guide
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button disabled={isSaving}>
+                                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                                {isSaving ? "Saving..." : "Saved"}
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -49,7 +145,7 @@ export default function BrandKitPage() {
                         <section className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-xl font-medium text-white">Color Palette</h2>
-                                <Button variant="secondary" size="sm">
+                                <Button variant="secondary" size="sm" onClick={handleAddColor}>
                                     <Plus className="w-4 h-4 mr-2" />
                                     Add Color
                                 </Button>

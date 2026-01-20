@@ -233,7 +233,7 @@ export default function EditorPage() {
                 // 4. Convert merged items to Components
                 const components = mergedItems.map((item: any, index: number) => ({
                     id: `pdf-${i}-${index}`,
-                    type: "text",
+                    type: "text" as const,
                     x: item.x * SCALE,
                     y: (item.y - item.height) * SCALE,
                     width: Math.max(item.width * SCALE * 1.1, 50),

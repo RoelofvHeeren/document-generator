@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * PDF Import Route - Node-Native (pdfjs-dist)
  * 
- * FIX: This route uses dynamic imports and a DOMMatrix polyfill 
- * to prevent build-time crashes and runtime reference errors in Node.
+ * FIX: This version disables the PDF.js worker to run entirely in-process.
+ * This prevents the "Cannot find module 'pdf.worker.mjs'" errors in production.
  */
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export const maxDuration = 60;
 
 export async function PUT(request: NextRequest) {
     try {
-        // 1. POLYFILL DOMMatrix (Required by pdfjs-dist v5+ in Node)
+        // 1. POLYFILL DOMMatrix (Required by pdfjs-dist v5+)
         if (typeof global !== 'undefined' && !(global as any).DOMMatrix) {
             (global as any).DOMMatrix = class DOMMatrix {
                 a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
@@ -33,31 +33,26 @@ export async function PUT(request: NextRequest) {
             };
         }
 
-        // 2. DYNAMIC IMPORT (Prevents build-time static analysis crashes)
+        // 2. DYNAMIC IMPORT
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
-        // 3. CONFIGURE WORKER
-        if (!(pdfjs as any).GlobalWorkerOptions.workerSrc) {
-            try {
-                (pdfjs as any).GlobalWorkerOptions.workerSrc = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
-            } catch (e) {
-                // Fallback for environments where require.resolve behaves differently
-                console.warn("Could not resolve worker path, trying default lookup");
-            }
-        }
-
+        // 3. READ INPUT
         const buffer = await request.arrayBuffer();
         if (!buffer || buffer.byteLength === 0) {
             return NextResponse.json({ error: "No PDF data received" }, { status: 400 });
         }
 
         const uint8Array = new Uint8Array(buffer);
+
+        // 4. LOAD DOCUMENT (In-process, no worker)
         const loadingTask = pdfjs.getDocument({
             data: uint8Array,
             useSystemFonts: true,
             isEvalSupported: false,
             disableFontFace: true,
-            verbosity: 0 // Keep it quiet
+            verbosity: 0,
+            // CRITICAL: This bypasses the need for pdf.worker.mjs in Node environments
+            disableWorker: true,
         });
 
         const pdf = await loadingTask.promise;
@@ -69,7 +64,7 @@ export async function PUT(request: NextRequest) {
             const textContent = await page.getTextContent();
             const viewport = page.getViewport({ scale: 1.0 });
 
-            // Structure to hold text blocks
+            // Extract text with positions
             const blocks = textContent.items.map((item: any) => {
                 const [scaleX, skewY, skewX, scaleY, x, y] = item.transform;
 
@@ -85,7 +80,7 @@ export async function PUT(request: NextRequest) {
                 };
             });
 
-            // Group blocks by Y coordinate to reduce "garbled" text
+            // Group blocks to prevent garbled text
             const groupedBlocks: any[] = [];
             const sortedBlocks = [...blocks].sort((a, b) => a.y - b.y || a.x - b.x);
 

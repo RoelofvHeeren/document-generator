@@ -90,7 +90,7 @@ export default function BrandKitPage() {
     const createDefaultBrandKit = async () => {
         try {
             const res = await fetch("/api/brand-kits", {
-                method: "POST",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     name: "Default Brand Kit",
@@ -258,8 +258,8 @@ export default function BrandKitPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`flex-1 py-4 px-6 font-medium text-sm transition-colors flex items-center justify-center gap-2 ${activeTab === tab.id
-                                            ? 'bg-[#139187]/20 text-[#139187] border-b-2 border-[#139187]'
-                                            : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                                        ? 'bg-[#139187]/20 text-[#139187] border-b-2 border-[#139187]'
+                                        : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                                         }`}
                                 >
                                     {tab.icon}

@@ -57,7 +57,7 @@ export default function BrandKitPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: "Alvison Default",
+                    name: "Elvison Default",
                     colors: defaultColors,
                     fonts: {},
                     assets: {}

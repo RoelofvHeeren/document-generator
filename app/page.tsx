@@ -101,7 +101,7 @@ export default function Home() {
           {/* Header */}
           <div className="glass-card p-8 rounded-2xl relative overflow-hidden">
             <div className="relative z-10">
-              <h1 className="font-serif text-4xl text-white mb-2">Alvison OS</h1>
+              <h1 className="font-serif text-4xl text-white mb-2">Elvison OS</h1>
               <p className="text-gray-400">Welcome to the Dashboard. Create a new project to get started.</p>
             </div>
             <div className="absolute top-0 right-0 w-64 h-64 bg-teal-accent/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />

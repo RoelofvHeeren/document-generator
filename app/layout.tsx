@@ -25,8 +25,8 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Alvison OS",
-  description: "AI-powered document generator for real estate professionals.",
+  title: "Elvison OS",
+  description: "Advanced Document Generation",
 };
 
 export default function RootLayout({

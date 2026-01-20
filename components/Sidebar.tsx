@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Copy, LayoutDashboard, FileText, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Copy, LayoutDashboard, FileText, Settings, Palette, ChevronLeft, ChevronRight } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import Image from "next/image";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -17,7 +18,7 @@ export function Sidebar() {
 
     const navItems = [
         { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Brand Kit", href: "/brand-kit", icon: Copy },
+        { label: "Brand Kit", href: "/brand-kit", icon: Palette }, // Changed icon from Copy to Palette
         { label: "Templates", href: "/templates", icon: FileText },
         { label: "Settings", href: "/settings", icon: Settings },
     ];
@@ -25,23 +26,50 @@ export function Sidebar() {
     return (
         <aside
             className={cn(
-                "sticky top-0 h-screen shrink-0 flex flex-col border-r border-white/10 bg-white/5 backdrop-blur-md transition-all duration-300 z-50",
-                collapsed ? "w-20" : "w-72"
+                "h-screen bg-black/40 backdrop-blur-xl border-r border-white/10 flex flex-col transition-all duration-300 relative z-50",
+                collapsed ? "w-20" : "w-64" // Changed width from w-72 to w-64
             )}
         >
-            <div className="flex h-20 items-center justify-between px-6">
-                {!collapsed && (
-                    <span className="font-serif text-2xl font-bold tracking-tight text-white">
-                        Alvison OS
-                    </span>
+            {/* Header / Logo */}
+            <div className="h-20 flex items-center px-6 border-b border-white/10">
+                {!collapsed ? (
+                    <div className="flex items-center gap-3">
+                        <div className="relative w-8 h-8">
+                            <Image
+                                src="/elvison-logo.png"
+                                alt="Elvison Logo"
+                                fill
+                                className="object-contain"
+                            />
+                        </div>
+                        <span className="font-serif text-xl font-bold tracking-tight text-white">
+                            Elvison OS
+                        </span>
+                    </div>
+                ) : (
+                    <div className="w-full flex justify-center">
+                        <div className="relative w-8 h-8">
+                            <Image
+                                src="/elvison-logo.png"
+                                alt="Elvison Logo"
+                                fill
+                                className="object-contain"
+                            />
+                        </div>
+                    </div>
                 )}
-                <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    className="text-gray-400 hover:text-white transition-colors"
-                >
-                    {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-                </button>
             </div>
+
+            {/* Collapse Button */}
+            <button
+                onClick={() => setCollapsed(!collapsed)}
+                className={cn(
+                    "absolute top-1/2 -translate-y-1/2 z-50 p-1 rounded-full bg-white/10 text-gray-400 hover:text-white transition-colors border border-white/20",
+                    collapsed ? "-right-3" : "-right-3" // Position adjusted for both states
+                )}
+            >
+                {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
 
             <nav className="flex flex-1 flex-col gap-2 px-4 py-4">
                 {navItems.map((item) => {

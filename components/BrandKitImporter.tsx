@@ -80,50 +80,37 @@ export function BrandKitImporter({ onImportComplete }: BrandKitImporterProps) {
         setErrorMessage(null);
 
         try {
-            // Create FormData and upload
+            // Create FormData and upload to the API
             const formData = new FormData();
             formData.append('file', file);
             formData.append('kitName', file.name.replace('.zip', ''));
 
-            // For now, we'll simulate the upload since we need server-side ZIP handling
-            // In production, this would upload to an API that extracts and processes the ZIP
-
-            // Simulated analysis delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
             setStatus('importing');
 
-            // Another simulated delay for import
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            const response = await fetch('/api/brand-kits/upload', {
+                method: 'POST',
+                body: formData,
+            });
 
-            // For demo purposes, show a success with mock data
-            // In production, this would be the actual response from the API
-            const mockResult: ImportResult = {
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to import brand kit');
+            }
+
+            const importResult: ImportResult = {
                 success: true,
-                brandKit: {
-                    id: 'demo-kit-' + Date.now(),
-                    name: file.name.replace('.zip', ''),
-                    sourceFolder: file.name
-                },
-                analysis: {
-                    totalItems: 110,
-                    totalSize: '58.4 MB',
-                    summary: {
-                        subBrands: ['Homes', 'Properties'],
-                        logoCount: 35,
-                        fontCount: 18,
-                        documentCount: 2
-                    }
-                }
+                brandKit: data.brandKit,
+                analysis: data.analysis
             };
 
-            setResult(mockResult);
+            setResult(importResult);
             setStatus('success');
-            onImportComplete(mockResult);
+            onImportComplete(importResult);
 
         } catch (error) {
             console.error('Import failed:', error);
-            setErrorMessage(String(error));
+            setErrorMessage(error instanceof Error ? error.message : String(error));
             setStatus('error');
         }
     };

@@ -1,6 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { DocumentPage } from "@/types/document";
+import prisma from "@/lib/prisma";
 
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
@@ -24,6 +25,10 @@ BRANDING RULES (STRICT):
    - Generous whitespace.
    - Overlapping elements (images with text overlays).
 
+LOGO PLACEMENT:
+- Use the provided logo URL in an image component for the cover page and closing page.
+- Position logos typically in the header or as a subtle footer element.
+
 Output Format:
 You must output ONLY valid JSON matching the DocumentPage interface.
 `;
@@ -38,6 +43,27 @@ export async function POST(req: Request) {
                 { status: 400 }
             );
         }
+
+        // Fetch the brand kit to get the primary logo
+        let primaryLogoUrl = null;
+        try {
+            const brandKit = await prisma.brandKit.findFirst({
+                orderBy: { updatedAt: 'desc' }
+            });
+
+            if (brandKit?.assets) {
+                const assets = brandKit.assets as { primaryLogo?: string };
+                if (assets.primaryLogo) {
+                    primaryLogoUrl = assets.primaryLogo;
+                }
+            }
+        } catch (err) {
+            console.warn("Could not fetch brand kit:", err);
+        }
+
+        const logoInstruction = primaryLogoUrl
+            ? `Logo URL to use: "${primaryLogoUrl}" - Include this logo on the cover page and closing page.`
+            : "No logo available - skip logo placement.";
 
         const prompt = `
     Project Name: ${projectDetails.name}
@@ -64,12 +90,14 @@ export async function POST(req: Request) {
 
     Template Type: ${templateType || "Business Plan"}
 
+    ${logoInstruction}
+
     Please generate a comprehensive multi-page document structure:
-    Page 1: Cover Page (High impact, project name, location, key visual)
+    Page 1: Cover Page (High impact, project name, location, key visual, include logo)
     Page 2: Executive Summary (Investment highlights, key metrics, ROI)
     Page 3: Development Overview (Project details, timeline, team)
     Page 4: Financial Projections (Investment breakdown, returns, exit strategy)
-    Page 5: Risk Analysis (Risk factors and mitigation strategies)
+    Page 5: Risk Analysis (Risk factors and mitigation strategies, include logo in footer)
     `;
 
         const msg = await anthropic.messages.create({
@@ -104,3 +132,4 @@ export async function POST(req: Request) {
         );
     }
 }
+

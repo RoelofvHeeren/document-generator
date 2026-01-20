@@ -173,6 +173,86 @@ export default function EditorPage() {
 
 
 
+    const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingPDF(true);
+        try {
+            // Read file as ArrayBuffer for raw binary upload
+            const arrayBuffer = await file.arrayBuffer();
+
+            // Use the new Node-native backend API with PUT to bypass Server Actions
+            const res = await fetch("/api/editor/import-pdf", {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/pdf",
+                    "X-File-Name": encodeURIComponent(file.name)
+                },
+                body: arrayBuffer,
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Upload failed");
+            }
+
+            const data = await res.json();
+            const importedPages = data.pages;
+
+            // Map backend data to frontend DocumentPage structure
+            const newPages: DocumentPage[] = importedPages.map((p: any, pageIndex: number) => {
+                // Map components
+                const components: DocumentComponent[] = [];
+
+                // 1. Text Blocks
+                p.blocks.forEach((block: any, blockIndex: number) => {
+                    components.push({
+                        id: `text-${pageIndex}-${blockIndex}-${Date.now()}`,
+                        type: "text",
+                        x: block.x,
+                        y: block.y,
+                        width: block.width,
+                        height: block.height,
+                        rotation: block.rotation || 0,
+                        content: block.text,
+                        font: block.font,
+                        style: {
+                            fontSize: `${block.fontSize}px`,
+                            fontFamily: "Inter, sans-serif",
+                            color: "#000000",
+                            lineHeight: "1.2",
+                            whiteSpace: "pre-wrap"
+                        }
+                    });
+                });
+
+                return {
+                    id: `imported-page-${Date.now()}-${pageIndex}`,
+                    name: `PDF Page ${p.pageNumber}`,
+                    background: p.backgroundImage, // The full page render
+                    components: components
+                };
+            });
+
+            if (newPages.length > 0) {
+                if (pages.length === 1 && pages[0].components.length === 0) {
+                    setPages(newPages);
+                } else {
+                    setPages(prev => [...prev, ...newPages]);
+                }
+                setActiveTab("design");
+            }
+
+        } catch (error) {
+            console.error("PDF Import failed", error);
+            const message = error instanceof Error ? error.message : "Failed to import PDF";
+            alert(`Failed to import: ${message}`);
+        } finally {
+            setIsUploadingPDF(false);
+        }
+    };
+
     const handleAiVerify = async () => {
         if (!activePage || !activePage.background) return;
 
@@ -660,7 +740,27 @@ export default function EditorPage() {
                                 Uses Claude Vision to correct layout, grouping, and rotation issues.
                             </p>
 
-
+                            <div className="pt-2">
+                                <label className="block w-full cursor-pointer group">
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="application/pdf"
+                                        onChange={handlePDFUpload}
+                                        disabled={isUploadingPDF}
+                                    />
+                                    <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-white/10 rounded-xl group-hover:border-teal-accent/50 group-hover:bg-teal-accent/5 transition-all">
+                                        {isUploadingPDF ? (
+                                            <Loader2 className="w-6 h-6 text-teal-accent animate-spin mb-2" />
+                                        ) : (
+                                            <Download className="w-6 h-6 text-gray-400 group-hover:text-teal-accent mb-2 rotate-180" />
+                                        )}
+                                        <span className="text-xs text-gray-400 group-hover:text-teal-accent">
+                                            {isUploadingPDF ? "Importing..." : "Upload PDF to Edit"}
+                                        </span>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     )}
 
@@ -773,6 +873,6 @@ export default function EditorPage() {
 
             </div>
             {/* Load PDF.js logic removed as we use backend extraction */}
-        </div>
+        </div >
     );
 }

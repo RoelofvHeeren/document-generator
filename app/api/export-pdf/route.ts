@@ -98,7 +98,7 @@ export async function POST(req: Request) {
 
     await browser.close();
 
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Blob([pdfBuffer as any]), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": "attachment; filename=document.pdf",

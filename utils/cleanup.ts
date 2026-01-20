@@ -10,6 +10,14 @@ export async function cleanupOldUploads(maxAgeMs: number = 24 * 60 * 60 * 1000) 
     const now = Date.now();
 
     try {
+        // Check if directory exists first
+        try {
+            await stat(uploadsDir);
+        } catch {
+            // Directory doesn't exist, nothing to clean
+            return;
+        }
+
         const entries = await readdir(uploadsDir, { withFileTypes: true });
 
         for (const entry of entries) {

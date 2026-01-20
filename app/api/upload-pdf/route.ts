@@ -39,9 +39,17 @@ export async function POST(req: NextRequest) {
         const scriptPath = path.join(process.cwd(), "scripts", "extract_pdf_v2.py");
 
         // Execute Python script
-        // We pass the output dir as the same uploads dir
-        // The script puts images in output_dir/images
-        const command = `python3 "${scriptPath}" "${pdfPath}" "${uploadsDir}"`;
+        const pythonCommand = "python3";
+        // Check finding it
+        console.log("PATH:", process.env.PATH);
+        try {
+            const { stdout: whichOut } = await execAsync(`which ${pythonCommand}`);
+            console.log("Which python3:", whichOut.trim());
+        } catch (e) {
+            console.warn("Could not find python3 in PATH via 'which'. Assuming global.");
+        }
+
+        const command = `${pythonCommand} "${scriptPath}" "${pdfPath}" "${uploadsDir}"`;
 
         console.log("Executing:", command);
 

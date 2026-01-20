@@ -210,9 +210,10 @@ export default function EditorPage() {
                         height: block.height,
                         rotation: block.rotation,
                         content: block.text,
+                        font: block.font,
                         style: {
                             fontSize: `${block.fontSize}px`,
-                            fontFamily: "Inter, sans-serif", // Default to Inter
+                            fontFamily: "Inter, sans-serif", // Initial fallback, Renderer uses font property
                             color: typeof block.color === 'number' ? `#${block.color.toString(16).padStart(6, '0')}` : "#000000",
                             lineHeight: "1.2",
                             whiteSpace: "pre-wrap"
@@ -707,6 +708,36 @@ export default function EditorPage() {
                                                     onChange={(e) => handleStyleUpdate(selectedId, { fontSize: `${e.target.value}px` })}
                                                     className="h-8 text-xs"
                                                 />
+                                            </div>
+                                        )}
+                                        {comp.type === 'image' && (
+                                            <div className="space-y-2 pt-2">
+                                                <label className="text-[10px] text-gray-500 font-medium ml-1 block">Image</label>
+                                                <label className="block w-full cursor-pointer group">
+                                                    <input
+                                                        type="file"
+                                                        className="hidden"
+                                                        accept="image/*"
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (!file) return;
+
+                                                            const reader = new FileReader();
+                                                            reader.onload = (event) => {
+                                                                if (event.target?.result) {
+                                                                    handleComponentUpdate(selectedId, { src: event.target.result as string });
+                                                                }
+                                                            };
+                                                            reader.readAsDataURL(file);
+                                                        }}
+                                                    />
+                                                    <div className="flex items-center justify-center h-10 border border-white/10 bg-white/5 rounded-lg group-hover:border-teal-accent/50 group-hover:bg-teal-accent/5 transition-all">
+                                                        <ImageIcon className="w-3.5 h-3.5 text-gray-400 group-hover:text-teal-accent mr-2" />
+                                                        <span className="text-[10px] text-gray-400 group-hover:text-teal-accent">
+                                                            Replace Image
+                                                        </span>
+                                                    </div>
+                                                </label>
                                             </div>
                                         )}
                                     </div>

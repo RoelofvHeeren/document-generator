@@ -3,6 +3,7 @@ import { DocumentComponent } from "@/types/document";
 import { DocumentTheme, fifthAvenueTheme } from "@/lib/themes";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { mapFont } from "@/utils/fontMapper";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -119,7 +120,7 @@ export function Renderer({
                             key={component.id}
                             style={{
                                 ...style,
-                                fontFamily: "var(--doc-font-body)",
+                                fontFamily: component.font ? mapFont(component.font) : "var(--doc-font-body)",
                                 color: "var(--doc-primary)",
                                 outline: "none",
                                 userSelect: isSelected ? "none" : "auto"

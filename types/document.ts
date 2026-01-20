@@ -13,6 +13,7 @@ export interface DocumentComponent {
     // Content
     content?: string; // HTML or text
     src?: string; // For images/videos
+    font?: string; // Raw PDF font name
     style?: Record<string, string>; // CSS overrides
 
     // Metadata for AI

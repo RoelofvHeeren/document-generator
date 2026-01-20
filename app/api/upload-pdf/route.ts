@@ -3,11 +3,15 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { cleanupOldUploads } from "@/utils/cleanup";
 
 const execAsync = promisify(exec);
 
 export async function POST(req: NextRequest) {
     try {
+        // Run cleanup in background (don't await for faster response)
+        cleanupOldUploads().catch(err => console.error("Cleanup error:", err));
+
         const formData = await req.formData();
         const file = formData.get("file") as File;
 
